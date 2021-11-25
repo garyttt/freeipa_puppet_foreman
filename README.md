@@ -298,6 +298,45 @@ Login as root at foreman:
 ```
 2. If there is failure and re-installation is needed, it is easier to rebuild VM and re-run the install scripts.
 3. Else verify Foreman GUI https://foreman.example.local
+4. Fine tune puppetserver within Foreman for performance, make the modifications as shown and restart puppetserver
+```bash
+[root@foreman ~]# diff /etc/sysconfig/puppetserver.orig /etc/sysconfig/puppetserver
+9c9
+< JAVA_ARGS="-Xms2G -Xmx2G -Djruby.logger.class=com.puppetlabs.jruby_utils.jruby.Slf4jLogger -XX:ReservedCodeCacheSize=512m"
+---
+> JAVA_ARGS="-Xms2G -Xmx2G -Djruby.logger.class=com.puppetlabs.jruby_utils.jruby.Slf4jLogger -XX:ReservedCodeCacheSize=1G -Djava.io.tmpdir=/var/tmp"
+[root@foreman ~]#
+[root@foreman ~]#
+[root@foreman ~]#
+[root@foreman ~]# diff /etc/puppetlabs/puppetserver/conf.d/puppetserver.conf.orig /etc/puppetlabs/puppetserver/conf.d/puppetserver.conf
+71,72c71,72
+<     environment-class-cache-enabled: false
+<     multithreaded: false
+---
+>     environment-class-cache-enabled: true
+>     multithreaded: true
+[root@foreman ~]#
+[root@foreman ~]#
+[root@foreman ~]#
+[root@foreman ~]# systemctl restart puppetserver
+[root@foreman ~]# systemctl status puppetserver
+● puppetserver.service - puppetserver Service
+   Loaded: loaded (/usr/lib/systemd/system/puppetserver.service; enabled; vendor preset: disabled)
+   Active: active (running) since Thu 2021-11-25 01:57:32 EST; 7s ago
+  Process: 10876 ExecStop=/opt/puppetlabs/server/apps/puppetserver/bin/puppetserver stop (code=exited, status=0/SUCCESS)
+  Process: 10991 ExecStart=/opt/puppetlabs/server/apps/puppetserver/bin/puppetserver start (code=exited, status=0/SUCCESS)
+ Main PID: 11017 (java)
+    Tasks: 42 (limit: 4915)
+   Memory: 1.0G
+   CGroup: /system.slice/puppetserver.service
+           └─11017 /usr/bin/java -Xms2G -Xmx2G -Djruby.logger.class=com.puppetlabs.jruby_utils.jruby.Slf4jLogger -XX:ReservedCodeCacheSize=1G -Djava.io.tmpdir=/var/tmp -XX:OnOutOfMemoryError=kill -9 %p -XX:Err>
+
+Nov 25 01:57:14 foreman.example.local systemd[1]: puppetserver.service: Succeeded.
+Nov 25 01:57:14 foreman.example.local systemd[1]: Stopped puppetserver Service.
+Nov 25 01:57:14 foreman.example.local systemd[1]: Starting puppetserver Service...
+Nov 25 01:57:32 foreman.example.local systemd[1]: Started puppetserver Service.
+[root@foreman ~]#
+```
 ---
 It is highly recommended to apply SSL Cert to Foreman Apache Server (httpd).
 
