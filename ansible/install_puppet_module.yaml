@@ -1,0 +1,32 @@
+---
+# How to run this playbook:
+# DEV: ansible-playbook -vv -i inventory/hosts -l puppet  install_puppet_module.yaml -e PUPPET_MODULE="sys_audit" -K
+# PRD: ansible-playbook -vv -i inventory/hosts -l foreman install_puppet_module.yaml -e PUPPET_MODULE="sys_audit" -K
+- name: Install (Deploy) Puppet Module
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars: 
+    ansible_python_interpreter: "/usr/bin/python3"
+    PUPPET_MODULE: "{{ PUPPET_MODULE }}"
+  tasks:
+    - name: Deploy
+      synchronize:
+        src: "./{{ PUPPET_MODULE }}"
+        dest: "/etc/puppetlabs/code/environments/production/modules/"
+        delete: yes
+        recursive: yes
+    - name: Set files/dirs ownerships and permissions
+      shell: |
+        HOSTNAME=`hostname -s`
+        cd /etc/puppetlabs/code/environments/production/modules
+        [ "$HOSTNAME" = "puppet" ]  && chown -R "pe-puppet:pe-puppet" {{ PUPPET_MODULE }}
+        [ "$HOSTNAME" = "foreman" ] && chown -R "puppet:puppet" {{ PUPPET_MODULE }}
+        find {{ PUPPET_MODULE }} -type d -exec chmod 755 {} \; || true
+        find {{ PUPPET_MODULE }} -type f -exec chmod 644 {} \; || true
+      ignore_errors: yes
+    - name: Validate syntax
+      shell: |
+        cd /etc/puppetlabs/code/environments/production/modules/{{ PUPPET_MODULE }}
+        /opt/puppetlabs/puppet/bin/puppet parser validate manifests/*.pp manifests/rules/*.pp
+

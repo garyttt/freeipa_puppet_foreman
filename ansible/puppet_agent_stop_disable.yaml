@@ -1,0 +1,44 @@
+---
+# How to run this playbook:
+# 0 List hosts:         ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --list-hosts puppet_agent_stop_disable.yaml
+# 1 Syntax check:       ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --syntax-check puppet_agent_stop_disable.yaml
+# 2.1 Dry-Run playbook: ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] -C puppet_agent_stop_disable.yaml -K
+# 2.2 Dry-Run tasks:    ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] puppet_agent_stop_disable.yaml -K 
+#  set check_mode: yes for selected tasks
+# 3 Actual-Run tasks:   ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] puppet_agent_stop_disable.yaml -K
+#  set check_mode: no for selected tasks
+# 4 Actual-Run playbook: ansible-playbook -vv -i inventory/hosts -l [hostname|hostgrp] puppet_agent_stop_disable.yaml -K
+# Use case: Non-PROD    ansible-playbook -vv -i inventory/hosts -l ppagents puppet_agent_stop_disable.yaml -K
+# Use case: PROD        ansible-playbook -vv -i inventory/hosts -l ppagentsprod puppet_agent_stop_disable.yaml -K
+
+# Pre-requisites: 
+# 1. Ubuntu or RHEL Linux for remote host
+# 2. run_user@controller_host SSH key trusted by remote_user@remote_host, mode 700 for .ssh, mode 640 for authorized_keys
+# 3. Make sure remote host IP is in DNS or /etc/hosts, otherwise `hostname -i` returns undesired multiple entries
+# 4. Puppet Agent has been installed/configured
+
+# Assumptions: OS for Puppet Agent is Ubuntu 20.04 or RHEL 8.X
+
+- name: Stop and disable Puppet Agent
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+  tasks:
+    - name: Ensure PE Puppet and PDK binaries in $PATH in ~root/.bashrc
+      lineinfile:
+        path: /root/.bashrc
+        line: "export PATH=$PATH:/opt/puppetlabs/puppet/bin:/opt/puppetlabs/bin:/opt/puppetlabs/pdk/bin"
+    - name: Stop-Disable Puppet Agent
+      shell: |
+        systemctl stop pxp-agent || true
+        systemctl stop puppet || true
+        kill -9 `ps -ef | grep -v grep | egrep "pxp-agent|puppet agent"|awk '{print $2}'` || true
+        systemctl disable pxp-agent || true
+        systemctl disable puppet || true
+      ignore_errors: yes
+      register: output
+    - debug:
+        var: output
+

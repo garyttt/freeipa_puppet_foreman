@@ -1,0 +1,21 @@
+ipa         ansible_host=192.168.159.133	ansible_user=gtay	ansible_python_interpreter=/usr/bin/python3
+ipa2		ansible_host=192.168.159.135	ansible_user=gtay	ansible_python_interpreter=/usr/bin/python3
+puppet		ansible_host=192.168.159.128	ansible_user=gtay	ansible_python_interpreter=/usr/bin/python3
+foreman		ansible_host=192.168.159.129	ansible_user=gtay	ansible_python_interpreter=/usr/bin/python3
+centos8		ansible_host=192.168.159.131	ansible_user=gtay	ansible_python_interpreter=/usr/bin/python3
+ubuntu20	ansible_host=192.168.159.132	ansible_user=gtay	ansible_python_interpreter=/usr/bin/python3
+jenkins		ansible_host=192.168.159.134	ansible_user=gtay	ansible_python_interpreter=/usr/bin/python3
+
+[ipaclients]
+centos8
+foreman
+jenkins
+puppet
+ubuntu20
+
+[ppagents]
+centos8
+ipa
+ipa2
+jenkins
+ubuntu20

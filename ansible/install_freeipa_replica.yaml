@@ -1,0 +1,154 @@
+---
+# How to run this playbook:
+# 0 List hosts:         ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --list-hosts install_freeipa_replica.yaml -K
+# 1 Syntax check:       ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --syntax-check install_freeipa_replica.yaml -K
+# 2.1 Dry-Run playbook: ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] -C install_freeipa_replica.yaml -K
+# 2.2 Dry-Run tasks:    ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_replica.yaml -K
+#  set check_mode: yes for selected tasks
+# 3 Actual-Run tasks:   ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_replica.yaml -K
+#  set check_mode: no for selected tasks
+# 4 Actual-Run playbook: ansible-playbook -vv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_replica.yaml -K
+# Pre-requisites: 
+# 1. RHEL Linux for remote host 
+# (Note: Ubuntu 20.04 does not support FreeIPA as of Apr 2021 and 18.04 has un-fixed installation bug)
+# 2. run_user@controller_host SSH key trusted by dacadmin@remote_host
+# 3. Make sure replica IP is in DNS or /etc/hosts, otherwise `hostname -i` returns undesired multiple entries
+
+# Ref URLs: 
+# Client Install: https://computingforgeeks.com/how-to-configure-freeipa-client-on-ubuntu-centos/
+# Replica Install: https://computingforgeeks.com/configure-freeipa-replication-on-ubuntu-centos/
+
+- name: Install FreeIPA Replica (client-install 1st then replica-install)
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+    # Please customize the next few parameters
+    IPA_DOMAIN: "dev.example.local"
+    IPA_REALM: "DEV.EXAMPLE.LOCAL"
+    DNS_SERVER1: "192.168.159.2"
+    DNS_SERVER2: "8.8.8.8"
+    REVERSE_ZONE1: "168.192.in-addr.arpa"
+    REVERSE_ZONE2: "8.in-addr.arpa"
+  vars_prompt:
+    - name: IPA_FQDN
+      prompt: The Fully Qualified Domain Name of the IPA Primary Master (CA-CRL)), press Enter for default of ipa.example.local"
+      default: "ipa.example.local"
+      private: no
+    - name: REPLICA_FQDN
+      prompt: The Fully Qualified Domain Name of the IPA Replica Master (ipa2.example.local), press Enter for default of ipa2.example.local"
+      default: "ipa2.example.local"
+      private: no  
+    - name: ADMIN_PRINCIPAL
+      prompt: The admin Kerberos principal, press Enter for default of admin@"{{ IPA_REALM }}"
+      default: "admin@{{ IPA_REALM }}"
+      private: no
+    - name: ADMIN_PASSWORD
+      prompt: The admin Kerberos password
+  tasks:
+    - name: Put SELinux in permissive mode, logging actions that would be blocked.
+      selinux:
+        policy: targeted
+        state: permissive
+      ignore_errors: yes
+    - name: YUM Update 
+      yum: 
+        name: '*'
+        state: latest
+    - name: Firewall Rules - note additional port (xrdp 3389/tcp) to enable GUI access
+      shell: |
+        firewall-cmd --add-service={http,https,dns,ntp,freeipa-ldap,freeipa-ldaps} --permanent
+        firewall-cmd --add-port=3389/tcp --permanent
+        firewall-cmd --reload
+        firewall-cmd --list-services
+        firewall-cmd --list-ports
+      register: output
+    - debug:
+        var: output
+    - name: Install Identity Management Module with FreeIPA AppStream
+      yum:
+        name: "@idm:DL1"
+        state: present
+    - name: Install FreeIPA Packages
+      yum:
+        name: [ 'ipa-client', 'ipa-server', 'ipa-server-dns', 'bind-dyndb-ldap', 'python3-pip' ]
+        state: latest
+    - name: Install/Configure FreeIPA Client
+      shell: |
+        umask 0022
+        ipa-client-install --server {{ IPA_FQDN }} --mkhomedir --force-join \
+          --ip-address `hostname -i` --hostname `hostname -f` \
+          --domain {{ IPA_DOMAIN }} --realm {{ IPA_REALM }} \     
+          -p {{ ADMIN_PRINCIPAL }} -w {{ ADMIN_PASSWORD }} -U
+      register: output
+      ignore_errors: yes
+      no_log: yes
+    # Uncomment the debug task ONLY when you need to troubleshoot as the output contains admin pw
+    # - debug:
+    #     var: output
+    # The next three tasks, please set 'become=no'
+    - name: Ansible module expect requires pexpect lib, note 'become=no' a MUST
+      shell: "pip3 install pexpect --user && sleep 5"
+      become: no
+    - name: Get Kerberos ticket for admin, note 'become=no' a MUST
+      expect:
+        command: kinit admin
+        responses:
+          Password for .*: "{{ ADMIN_PASSWORD }}"
+      become: no
+      ignore_errors: yes
+    - name: Add host's membership in 'ipaservers', note 'become=no' a MUST
+      shell: |
+        sleep 10
+        id -a admin
+        if [ $? -eq 0 ]; then
+          klist
+          ipa host-add {{ REPLICA_FQDN }} || true
+          ipa hostgroup-add-member ipaservers --hosts {{ REPLICA_FQDN }} || true
+        fi
+      become: no
+      no_log: yes
+      register: output
+      ignore_errors: no
+    - debug:
+        var: output
+    - name: Install/Configure FreeIPA Replica
+      shell: |
+        umask 0022   
+        ipa-replica-install --ip-address `hostname -i` \
+          --setup-dns --no-dnssec-validation --no-host-dns \
+          --forwarder={{ DNS_SERVER1 }} --forwarder={{ DNS_SERVER2 }} --forward-policy=first \
+          --reverse-zone={{ REVERSE_ZONE1 }} --reverse-zone={{ REVERSE_ZONE2 }} --allow-zone-overlap \
+          --no-ui-redirect --mkhomedir -U
+      register: output
+      ignore_errors: yes
+      no_log: yes
+    # Uncomment the debug task ONLY when you need to troubleshoot as the output contains admin pw
+    # - debug:
+    #     var: output
+    - name: Check status
+      shell: ipactl status && systemctl status ipa
+      register: output
+      ignore_errors: yes
+    - debug:
+        var: output
+    - name: Tips to note when there is failure or re-installation/upgrade is needed
+      shell: |
+        echo ""
+        echo "When there is/are failure(s) or re-installation/upgrade is needed:"
+        echo ""
+        echo "Please review log file /var/log/ipareplica-install.log"
+        echo "Please run 'sudo ipa-replica-manage del {{ REPLICA_FQDN }} --force' at IPA PRIMARY Master, this step is IMPORTANT and must be done FIRST."
+        echo ""
+        echo "After which:"
+        echo "Please run 'sudo ipa-server-install --uninstall' at the IPA REPLICA Master, and ALSO"
+        echo "'sudo dnf remove sssd-ipa 389-ds-core' at the IPA REPLICA Master, note that this will remove about 150 to 250 packages, do NOT be alarmed."
+        echo ""
+      register: output
+    - debug:
+        var: output
+    - name: Remove pexpect after use as auto-keystroke might be security risk
+      shell: "pip3 uninstall pexpect -y || true"
+
+

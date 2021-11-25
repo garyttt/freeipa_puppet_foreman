@@ -1,0 +1,114 @@
+---
+# How to run this playbook:
+# 0 List hosts:         ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --list-hosts install_freeipa_client.yaml -K
+# 1 Syntax check:       ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --syntax-check install_freeipa_client.yaml -K
+# 2.1 Dry-Run playbook: ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] -C install_freeipa_client.yaml -K
+# 2.2 Dry-Run tasks:    ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_client.yaml -K
+#  set check_mode: yes for selected tasks
+# 3 Actual-Run tasks:   ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_client.yaml -K
+#  set check_mode: no for selected tasks
+# 4 Actual-Run playbook: ansible-playbook -vv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_client.yaml -K
+# Pre-requisites: 
+# 1. Ubuntu or RHEL Linux for remote host
+# 2. run_user@controller_host SSH key trusted by dacadmin@remote_host
+# 3. Make sure remote host IP is in DNS or /etc/hosts, otherwise `hostname -i` returns undesired multiple entries
+
+# Ref URLs: 
+# Client Install: https://computingforgeeks.com/how-to-configure-freeipa-client-on-ubuntu-centos/
+
+- name: Install FreeIPA Client
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+    # Please customize the next few parameters
+    IPA_FQDN: "ipa.example.local"
+    IPA_DOMAIN: "dev.examle.local"
+    IPA_REALM: "DEV.EXAMPLE.LOCAL"
+  vars_prompt:
+    - name: ADMIN_PRINCIPAL
+      prompt: The admin Kerberos principal, press Enter for default of admin@"{{ IPA_REALM }}"
+      default: "admin@{{ IPA_REALM }}"
+      private: no
+    - name: ADMIN_PASSWORD
+      prompt: The admin Kerberos password
+  tasks:
+    - name: Install Packages, sssd-tools (ubuntu) or sssd-common (rhel) provides the useful sss_cache command
+      shell: |
+        which apt-get
+        if [ $? -eq 0 ]; then
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt install freeipa-client sssd-tools -y
+        else
+          set enforce 0
+          sed -i s/^SELINUX=.*$/SELINUX=permissive/ /etc/selinux/config
+          yum update
+          yum install ipa-client sssd-common -y 
+        fi
+    - name: Enroll IPA Client
+      shell: |
+        umask 0022
+        ipa-client-install --server {{ IPA_FQDN }} --mkhomedir --force-join \
+          --ip-address `hostname -i` --hostname `hostname -f` \
+          --domain {{ IPA_DOMAIN }} --realm {{ IPA_REALM }} \
+          -p {{ ADMIN_PRINCIPAL }} -w {{ ADMIN_PASSWORD }} -U
+      register: output
+      ignore_errors: yes
+      no_log: yes
+    # Uncomment the debug task ONLY when you need to troubleshoot as the output contains admin pw
+    # - debug:
+    #     var: output
+    - name: Enable mkhomedir for Ubuntu
+      shell: |
+        which apt-get
+        if [ $? -eq 0 ]; then
+        cat <<EOF | sudo tee /usr/share/pam-configs/mkhomedir
+        Name: activate mkhomedir
+        Default: yes
+        Priority: 900
+        Session-Type: Additional
+        Session:
+        required pam_mkhomedir.so umask=0022 skel=/etc/skel
+        EOF
+        pam-auth-update --force --enable mkhomedir
+        fi
+      register: output
+      ignore_errors: yes
+    - debug:
+        var: output
+    - name: Enable centralized sudo service on client for FreeIPA accounts (users,groups,host-groups)
+      shell: |
+        which apt-get
+         if [ $? -eq 0 ]; then
+           echo "For Ubuntu ipa-client-install sudo service is by-default enabled in /etc/sssd/sssd.conf"
+           grep sudo /etc/sssd/sssd.conf
+           systemctl restart sssd
+         else
+           # authselect enable-feature with-sudo
+           authselect select sssd with-sudo with-mkhomedir --force
+           systemctl enable oddjobd
+           systemctl restart oddjobd
+           systemctl restart sssd
+         fi
+      ignore_errors: yes
+      register: output
+    - debug:
+        var: output
+    - name: Display fine-tuning instructions
+      shell: |
+        cat <<EOF >&1
+
+        As we have DISABLED the default 'allow_all' Host Based Access Control (HBAC) Rule/Policy in IPA Master,
+        we need to add the IPA client (FQDN) into 'allow_all_hosts' MANUALLY, otherwise there will be SSH connection issue.
+        Also if the user of the IPA Client is developing with docker,
+        we need to add the user IPA account into 'docker' IPA user group MANUALLY.
+        Both can be done easily after the IPA Client install via admin login into IPA GUI.
+        
+        EOF
+      register: output
+    - debug:
+        var: output
+
+

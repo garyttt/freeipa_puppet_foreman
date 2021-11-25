@@ -1,0 +1,7 @@
+ipaservers:ipa.example.local,ipa2.example.local
+xx1servers:xx1vm1.example.local,xx1vm2.example.local,xx1vm3.example.local,xx1vm4.example.local,xx1vm5.example.local
+xx2servers:xx2vm1.example.local,xx2vm2.example.local
+puppetinfra:puppet.example.local,foreman.example.local
+legacy_prod_servers:cicd.example.local,cicdr0.example.local,cicdr1.example.local
+devops_admins_vms:adminvm1.example.local,adminvm2.example.local,adminvm3.example.local,adminvm4.example.local
+devops_infra_servers:ipa.example.local,ipa2.example.local,puppet.example.local,foreman.example.local

@@ -1,0 +1,123 @@
+---
+# How to run this playbook:
+# 0 List hosts:         ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --list-hosts install_freeipa_server.yaml -K
+# 1 Syntax check:       ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --syntax-check install_freeipa_server.yaml -K
+# 2.1 Dry-Run playbook: ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] -C install_freeipa_server.yaml -K
+# 2.2 Dry-Run tasks:    ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_server.yaml -K
+#  set check_mode: yes for selected tasks
+# 3 Actual-Run tasks:   ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_server.yaml -K
+#  set check_mode: no for selected tasks
+# 4 Actual-Run playbook: ansible-playbook -vv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_server.yaml -K
+# Pre-requisites: 
+# 1. RHEL Linux for remote host 
+# (Note: Ubuntu 20.04 does not support FreeIPA as of Apr 2021 and 18.04 has un-fixed installation bug)
+# 2. run_user@controller_host SSH key trusted by dacadmin@remote_host
+# 3. Make sure IPA IP is in DNS or /etc/hosts or you can add --no-host-dns option to avoid hostname against DNS
+
+# Ref URLs: 
+# Server Install: https://computingforgeeks.com/how-to-install-and-configure-freeipa-server-on-rhel-centos-8/
+# Client Install: https://computingforgeeks.com/how-to-configure-freeipa-client-on-ubuntu-centos/
+# Enable 2FA: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/linux_domain_identity_authentication_and_policy_guide/otp
+
+- name: Install FreeIPA Server
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+    # Please customize the next few parameters
+    DNS_SERVER1: "192.168.159.2"
+    DNS_SERVER2: "8.8.8.8"
+    REVERSE_ZONE1: "168.192.in-addr.arpa"
+    REVERSE_ZONE2: "8.in-addr.arpa"
+    EMAILDOMAIN: "example.local"
+  vars_prompt:
+    - name: IPA_IP
+      prompt: The FreeIPA Server IP Address, press Enter for default of 192.168.159.133 (ipa)
+      default: "192.168.159.133"
+      private: no
+    - name: IPA_FQDN
+      prompt: The FreeIPA Server FQDN, press Enter for default of ipa.example.local
+      default: "ipa.example.local"
+      private: no
+    - name: IPA_REALM
+      prompt: The FreeIPA Kerberos REALM in CAPITAL, press Enter for default of DEV.EXAMPLE.LOCAL
+      default: "DEV.EXAMPLE.LOCAL"
+      private: no
+    - name: IPA_DOMAIN
+      prompt: The FreeIPA DNS Domain/Sub-Domain in lowercase, press Enter for default of dev.example.local
+      default: "dev.example.local"
+      private: no
+    - name: ADMIN_PASSWORD
+      prompt: The admin principal Kerberos password
+    - name: DM_PASSWORD
+      prompt: The Directory Manager password   
+  tasks:
+    - name: Put SELinux in permissive mode, logging actions that would be blocked.
+      selinux:
+        policy: targeted
+        state: permissive
+      ignore_errors: yes
+    - name: YUM Update 
+      yum: 
+        name: '*'
+        state: latest
+    - name: Firewall Rules - Note additional port (xrdp 3389/tcp) and service to enable GUI access and replication
+      shell: |
+        firewall-cmd --add-service={http,https,dns,ntp,freeipa-ldap,freeipa-ldaps,freeipa-replication} --permanent
+        firewall-cmd --add-port=3389/tcp --permanent
+        firewall-cmd --reload
+        firewall-cmd --list-services
+        firewall-cmd --list-ports
+      register: output
+    - debug:
+        var: output
+    - name: Install Identity Management Module with FreeIPA AppStream
+      yum:
+        name: "@idm:DL1"
+        state: present
+    - name: Install FreeIPA Packages
+      yum:
+        name: [ 'ipa-server', 'ipa-server-dns', 'bind-dyndb-ldap', 'python3-pip' ]
+        state: latest
+    - name: Install/Configure FreeIPA Server
+      shell: |
+        umask 0022
+        ipa-server-install -a {{ ADMIN_PASSWORD }} -p {{ DM_PASSWORD }} \
+          --ip-address={{ IPA_IP }} --hostname={{ IPA_FQDN }} \
+          --domain={{ IPA_DOMAIN }} --realm={{ IPA_REALM }} \
+          --setup-dns --no-dnssec-validation --no-host-dns \
+          --forwarder={{ DNS_SERVER1 }} --forwarder={{ DNS_SERVER2 }} --forward-policy=first \
+          --reverse-zone={{ REVERSE_ZONE1 }} --reverse-zone={{ REVERSE_ZONE2 }} --allow-zone-overlap \
+          --no-ntp --no-ui-redirect --mkhomedir --idstart=60001 -U
+      register: output
+      ignore_errors: yes
+      no_log: yes
+    # Uncomment the debug task ONLY when you need to troubleshoot as the output contains admin and dirmgr pw
+    - debug:
+        var: output
+    - name: Check status
+      shell: ipactl status && systemctl status ipa
+      register: output
+    - debug:
+        var: output
+    # The next three tasks, please set 'become=no'
+    - name: Ansible module expect requires pexpect lib, note 'become=no' a MUST
+      shell: "pip3 install pexpect --user && sleep 10"
+      become: no
+    - name: Get Kerberos ticket for admin
+      expect:
+        command: kinit admin
+        responses:
+          Password for .*: "{{ ADMIN_PASSWORD }}"
+      become: no
+    - name: Typical ipa commands after 'kinit admin', could also be done in IPA GUI, note 'become=no' a MUST
+      shell: |
+        ipa config-mod --defaultshell=/bin/bash
+        ipa config-mod --emaildomain={{ EMAILDOMAIN }}
+      become: no
+    - name: Remove pexpect after use as auto-keystroke might be security risk, note 'become=no' a MUST
+      shell: "pip3 uninstall pexpect -y || true"
+      become: no
+
+

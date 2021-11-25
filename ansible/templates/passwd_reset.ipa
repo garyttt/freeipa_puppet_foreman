@@ -1,0 +1,4 @@
+# Do NOT Un-comment all users, do SELECT needed entries
+# Un-comment those users you would like to reset password (generate random IPA user password) with email notifications
+# After runing the password reset script, REMEMBER to comment out all users
+test.user

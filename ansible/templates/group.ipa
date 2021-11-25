@@ -1,0 +1,9 @@
+admins:x:60001:admin.0001,admin.0002,admin.0003,admin.0004
+xx1:x:6002:xx1.0001,xx1.0002,xx1.0003,xx1.0004,xx1.0005
+xx2:x:6003:xx2.0001,xx2.0002,xx2.0003,xx2.0004
+xx3:x:6004:xx3.0001
+devops-admins:x:6005:admin.0001,admin.0002,admin.0003,admin.0004
+it:x:9999:it.0001
+docker:x:994:xx1.0001,xx1.0002,xx1.0003,xx1.0004,xx1.0005,xx2.0002,xx3.0001
+applnxx:x:7001:applnxx.prod,applnxx.staging,applnxx.dev
+proj-xx1:x:7002:xx1.0001,xx1.0002,xx1.0003,xx1.0004,xx1.0005,xx2.0002

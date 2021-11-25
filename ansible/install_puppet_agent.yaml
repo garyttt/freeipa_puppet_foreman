@@ -1,0 +1,132 @@
+---
+# How to run this playbook:
+# 0 List hosts:         ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --list-hosts install_puppet_agent.yaml
+# 1 Syntax check:       ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --syntax-check install_puppet_agent.yaml
+# 2.1 Dry-Run playbook: ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] -C install_puppet_agent.yaml -K
+# 2.2 Dry-Run tasks:    ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_puppet_agent.yaml -K 
+#  set check_mode: yes for selected tasks
+# 3 Actual-Run tasks:   ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_puppet_agent.yaml -K
+#  set check_mode: no for selected tasks
+# 4 Actual-Run playbook: ansible-playbook -vv -i inventory/hosts -l [hostname|hostgrp] install_puppet_agent.yaml -K
+
+# Pre-requisites: 
+# 1. Ubuntu or RHEL Linux for remote host
+# 2. run_user@controller_host SSH key trusted by remote_user@remote_host, mode 700 for .ssh, mode 640 for authorized_keys
+# 3. Make sure remote host IP is in DNS or /etc/hosts, otherwise `hostname -i` returns undesired multiple entries
+
+# Assumptions: OS for Puppet Agent is Ubuntu 20.04 or RHEL 8.X
+
+- name: Install/Re-Install Puppet Enterprise 2021.3.0 Agent and PDK 2.2.0
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+    PPM_FQDN: "foreman.example.local"
+    PPM_SHORT: "foreman"
+    PPM_IP: "192.168.159.129"
+  tasks:
+    - name: Ensure puppet FQDN is in /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ PPM_IP }} {{ PPM_FQDN }} {{ PPM_SHORT }}"
+    - name: Install PE Agent and PDK (about 5-7 mins)
+      shell: |
+        cd /tmp
+        which apt-get
+        if [ $? -eq 0 ]; then
+          apt-get install -y curl
+          # Update GPG Key
+          curl --remote-name --location https://apt.puppet.com/DEB-GPG-KEY-puppet-20250406
+          gpg --keyid-format 0xLONG --with-fingerprint ./DEB-GPG-KEY-puppet-20250406
+          apt-key add DEB-GPG-KEY-puppet-20250406
+          # Downloads
+          rm -f puppet-agent*.deb pdk*.deb || true
+          # curl -JLO 'https://pm.puppetlabs.com/puppet-agent/2021.3.0/7.9.0/repos/deb/focal/puppet7/puppet-agent_7.9.0-1focal_amd64.deb' || true
+          curl -JLO 'https://pm.puppetlabs.com/puppet-agent/2021.4.0/7.12.1/repos/deb/focal/puppet7/puppet-agent_7.12.1-1focal_amd64.deb' || true
+          curl -JLO 'https://pm.puppet.com/cgi-bin/pdk_download.cgi?dist=ubuntu&rel=20.04&arch=amd64&ver=latest' || true
+          # Install
+          apt-get update || true
+          # dpkg -i puppet-agent_7.9.0-1focal_amd64.deb pdk*.deb
+          dpkg -i puppet-agent_7.12.1-1focal_amd64.deb pdk*.deb
+          # Disable apparmor as it overflows /dev/kmsg buffer causing 'dmesg' failure to properly report kernel messages
+          systemctl stop apparmor || true
+          systemctl disable apparmor || true
+        else
+          set enforce 0
+          sed -i s/^SELINUX=.*$/SELINUX=permissive/ /etc/selinux/config
+          yum install -y curl
+          # Update GPG Key
+          curl --remote-name --location https://yum.puppet.com/RPM-GPG-KEY-puppet-20250406
+          gpg --keyid-format 0xLONG --with-fingerprint ./RPM-GPG-KEY-puppet-20250406
+          rpm --import RPM-GPG-KEY-puppet-20250406
+          # Downloads
+          rm -f puppet-agent*.rpm pdk*.rpm || true
+          # curl -JLO 'https://pm.puppetlabs.com/puppet-agent/2021.3.0/7.9.0/repos/el/8/puppet7/x86_64/puppet-agent-7.9.0-1.el8.x86_64.rpm' || true
+          curl -JLO 'https://pm.puppetlabs.com/puppet-agent/2021.4.0/7.12.1/repos/el/8/puppet7/x86_64/puppet-agent-7.12.1-1.el8.x86_64.rpm' || true
+          curl -JLO 'https://pm.puppet.com/cgi-bin/pdk_download.cgi?dist=el&rel=8&arch=x86_64&ver=latest' || true
+          # Install
+          yum update -y
+          # yum install -y puppet-agent-7.9.0-1.el8.x86_64.rpm pdk*.rpm
+          yum install -y puppet-agent-7.12.1-1.el8.x86_64.rpm pdk*.rpm
+        fi
+      register: output
+      ignore_errors: yes
+    - debug:
+        var: output
+    - name: Enable and STOP Puppet Agent - Why STOP? Reason being START only when classes (node group) at Master are tested in case this agent node is included
+      shell: |
+        systemctl stop puppet || true
+        kill -9 `ps -ef | grep -v grep | egrep "pxp-agent|puppet agent"|awk '{print $2}'` || true
+      ignore_errors: yes
+      register: output
+    - debug:
+        var: output
+    - name: Ensure PE Puppet and PDK binaries in $PATH in ~root/.bashrc
+      lineinfile:
+        path: /root/.bashrc
+        line: "export PATH=$PATH:/opt/puppetlabs/puppet/bin:/opt/puppetlabs/bin:/opt/puppetlabs/pdk/bin"
+    - name: Ensure puppet.conf exists
+      shell: |
+        mkdir -p /etc/puppetlabs/puppet && touch /etc/puppetlabs/puppet/puppet.conf
+    - name: Ensure server is defined in puppet.conf
+      lineinfile:
+        path: /etc/puppetlabs/puppet/puppet.conf
+        regex: "server = .*"
+        line: "server = {{ PPM_FQDN }}"
+    - name: Display manual instuctions if this is a re-installation
+      shell: |
+        cat <<EOF >&1
+        You will reveive the following message when re-installation of agent or master was attempted:
+
+        Re-installation of Agent:
+        Could not request certificate: The certificate retrieved from the master does not match the agent\'s private key
+
+        Re-installation of Master:
+        Failed to generate additional resources using 'eval_generate': certificate verify failed [unable to get local issuer certificate for CN=puppet.example.local]
+
+        To fix this, run the following as root at master and agent:
+        
+        1) At master, perform clean-up
+        puppetserver ca clean --certname FQDN_of_Agent
+        puppet node clean FQDN_of_Agent
+        
+        2) At agent, perform clean-up
+        systemctl stop puppet || true
+        rm -rf /etc/puppetlabs/puppet/ssl
+        puppet agent -t --noop --server {{ PPM_FQDN }}
+        systemctl start puppet || true
+        
+        3) At master, sign CSR with CLI or GUI, for CLI:
+        puppetserver ca sign --certname FQDN_of_Agent
+        
+        4) At agent, 1st run to complate the agent certification
+        puppet agent -t
+        
+        EOF 
+      ignore_errors: yes
+      register: output
+    - debug:
+        var: output
+
+

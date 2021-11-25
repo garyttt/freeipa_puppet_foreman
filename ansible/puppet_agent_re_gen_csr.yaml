@@ -1,0 +1,61 @@
+---
+# How to run this playbook:
+# 0 List hosts:         ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --list-hosts puppet_agent_re_gen_csr.yaml
+# 1 Syntax check:       ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --syntax-check puppet_agent_re_gen_csr.yaml
+# 2.1 Dry-Run playbook: ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] -C puppet_agent_re_gen_csr.yaml -K
+# 2.2 Dry-Run tasks:    ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] puppet_agent_re_gen_csr.yaml -K 
+#  set check_mode: yes for selected tasks
+# 3 Actual-Run tasks:   ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] puppet_agent_re_gen_csr.yaml -K
+#  set check_mode: no for selected tasks
+# 4 Actual-Run playbook: ansible-playbook -vv -i inventory/hosts -l [hostname|hostgrp] puppet_agent_re_gen_csr.yaml -K
+# Use case: Non-PROD    ansible-playbook -vv -i inventory/hosts -l ppagents puppet_agent_re_gen_csr.yaml -K
+# Use case: PROD        ansible-playbook -vv -i inventory/hosts -l ppagentsprod puppet_agent_ren_gen_csr.yaml -K
+
+# Pre-requisites: 
+# 1. Ubuntu or RHEL Linux for remote host
+# 2. run_user@controller_host SSH key trusted by remote_user@remote_host, mode 700 for .ssh, mode 640 for authorized_keys
+# 3. Make sure remote host IP is in DNS or /etc/hosts, otherwise `hostname -i` returns undesired multiple entries
+# 4. Puppet Agent has been installed/configured, however its SSL certificate has been revoked at Puppet Master
+
+# Assumptions: OS for Puppet Agent is Ubuntu 20.04 or RHEL 8.X
+# IMPORTANT: Never run this script against Puppet Master(s)
+
+- name: Clean-up SSL certs and re-generate Certificate Signing Request
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+    PPM_FQDN: "foreman.example.local"
+    PPM_SHORT: "foreman"
+    PPM_IP: "192.168.159.129"
+  tasks:
+    - name: Ensure puppet FQDN is in /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ PPM_IP }} {{ PPM_FQDN }} {{ PPM_SHORT }}"
+    - name: Ensure server is defined in puppet.conf
+      lineinfile:
+        path: /etc/puppetlabs/puppet/puppet.conf
+        regex: "server = .*"
+        line: "server = {{ PPM_FQDN }}"
+    - name: Ensure PE Puppet and PDK binaries in $PATH in ~root/.bashrc
+      lineinfile:
+        path: /root/.bashrc
+        line: "export PATH=$PATH:/opt/puppetlabs/puppet/bin:/opt/puppetlabs/bin:/opt/puppetlabs/pdk/bin"
+    - name: Re-generate CSR for Puppet Master to sign
+      shell: |
+        IP=`hostname -i`
+        [ "$IP" = "192.168.159.128" ] && echo "Not allowed to run on Puppet Master, exiting..." && exit 1
+        [ "$IP" = "192.168.159.129" ] && echo "Not allowed to run on Puppet Master, exiting..." && exit 1
+        export PATH=/opt/puppetlabs/puppet/bin:/opt/puppetlabs/bin:/opt/puppetlabs/pdk/bin:$PATH
+        systemctl stop pxp-agent || true
+        systemctl stop puppet || true
+        kill -9 `ps -ef | grep -v grep | egrep "pxp-agent|puppet agent"| awk '{print $2}'` || true
+        rm -rf /etc/puppetlabs/puppet/ssl || true
+        puppet agent -t --noop --server {{ PPM_FQDN }} || true
+      ignore_errors: yes
+      register: output
+    - debug:
+        var: output
+
