@@ -56,7 +56,7 @@ Note: Secondary Master is a Replica Master with additional CA Server Install, at
 
 1. Login as run_user (gtay) at the controller (centos8) and clone the GIT Repo.
 ```bash
-git clone git@github.com:garyttt/freeipa_puppet_foreman.git
+git clone https://github.com/garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
 ```
 2. Edit 'DNS_SERVER1' and other customized settings and provide the actual IP for your use case.
@@ -169,7 +169,7 @@ Unknown host ipa2.example.local: Host 'ipa2.example.local' does not have corresp
 
 1. Login as run_user (gtay) at the controller (centos8) and clone the GIT Repo if it is not already done.
 ```bash
-git clone git@github.com:garyttt/freeipa_puppet_foreman.git
+git clone https://github.com/garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
 ```
 2. Edit IPA\_ related FQDN, DOMAIN and REALM for your use case if applicable.
@@ -199,7 +199,7 @@ ipa-client-install --uninstall
 
 1. Login as remote_user (gtay) at the remote_host (ipa) and clone the GIT Repo.
 ```bash
-git clone git@github.com:garyttt/freeipa_puppet_foreman.git
+git clone https://github.com/garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
 kinit admin
 bash -vx ./ipa_add_groups.sh
@@ -252,7 +252,7 @@ Note that it is possible to create multiple OTP Tokens for the same user.
 
 1. Login as run_user (gtay) at the controller (centos8) and clone the GIT Repo if it is not already done.
 ```bash
-git clone git@github.com:garyttt/freeipa_puppet_foreman.git
+git clone https://github.com/garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
 ```
 2. Edit 'PPM_IP' and provide the actual IP for your use case.
@@ -288,7 +288,7 @@ https://puppet.com/docs/pe/2019.8/use_a_custom_ssl_cert_for_the_console.html
 
 1. Login as run_user (gtay) at the Foreman Server (foreman) and clone the GIT Repo if it is not already done.
 ```bash
-git clone git@github.com:garyttt/freeipa_puppet_foreman.git
+git clone https://github.com/garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
 ```
 Login as root at foreman:
@@ -305,7 +305,7 @@ It is highly recommended to apply SSL Cert to Foreman Apache Server (httpd).
 
 1. Login as run_user (gtay) at the controller (centos8) and clone the GIT Repo if it is not already done.
 ```bash
-git clone git@github.com:garyttt/freeipa_puppet_foreman.git
+git clone https://github.com/garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
 ```
 2. Edit PPM_IP for your use case if applicable, default points to Foreman (.129), it can be Puppet Enterprise (.128)
