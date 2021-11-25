@@ -54,7 +54,7 @@ ln -sf /usr/share/zoneinfo/Asia/Singapore /etc/localtime
 
 Note: Secondary Master is a Replica Master with additional CA Server Install, at any one time either Primary Master or Secondary Master can play the role as CA Renewal Master Server via 'ipa-crlgen-manage enable' command.
 
-8. Login as run_user (gtay) at the controller (centos8) and clone the GIT Repo.
+1. Login as run_user (gtay) at the controller (centos8) and clone the GIT Repo.
 ```bash
 git clone git@github.com:garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
@@ -116,7 +116,7 @@ install_freeipa_replica.yaml:    IPA_DOMAIN: "dev.example.local"
 install_freeipa_replica.yaml:    IPA_REALM: "DEV.EXAMPLE.LOCAL"
 ```
 
-1. Run Ansible for Seondary Master Install, take default values except for the last prompt you need to provide admin password.
+8. Run Ansible for Seondary Master Install, take default values except for the last prompt you need to provide admin password.
 ```bash
 ansible-playbook -vv -i inventory/hosts -l ipa2 install_freeipa_replica.yaml -K
 ```
