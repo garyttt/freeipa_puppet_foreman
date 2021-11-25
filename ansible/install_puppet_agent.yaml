@@ -119,6 +119,8 @@
         
         3) At master, sign CSR with CLI or GUI, for CLI:
         puppetserver ca sign --certname FQDN_of_Agent
+
+        This step is not needed if PuppetServer end is configured to auto-sign client's CSR
         
         4) At agent, 1st run to complate the agent certification
         puppet agent -t
