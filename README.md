@@ -368,3 +368,88 @@ dnf remove -y puppet-agent
 apt-get remove -y puppet-agent
 ```
 
+# Centralized Configuration (OS hardening, Audit and Compliance) - Install cis_profile puppet module
+
+* Ref: https://github.com/garyttt/cis_profile
+
+1. Login as root at puppet.example.local and foreman.example.local
+2. Follow the instructions, it is as simple as running './install.sh'
+```bash
+git clone https://github.com/garyttt/cis_profile.git
+cd cis_profile
+./install.sh
+```
+After a few minutes, it is done.
+
+Check 'puppet module list' for warnings or errors
+If for some reason camptocamp-systemd was not installed to latest 3.0.0 level, perform the following clean-up and re-install fix:
+```bash
+# puppet module list
+# cd /etc/puppetlabs/code/environments/production/modules
+# rm -rf systemd
+# puppet module install camptocamp-systemd
+# puppet module list
+```
+Outputs:
+```bash
+[root@puppet ~]# puppet module list
+/etc/puppetlabs/code/environments/production/modules
+├── aboe-chrony (v0.3.2)
+├── camptocamp-augeas (v1.9.0)
+├── camptocamp-kmod (v2.5.0)
+├── camptocamp-postfix (v1.12.0)
+├── camptocamp-systemd (v3.0.0)
+├── fervid-secure_linux_cis (v3.0.0)
+├── gtay-cis_profile (v0.1.0)
+├── herculesteam-augeasproviders_core (v2.7.0)
+├── herculesteam-augeasproviders_grub (v3.2.0)
+├── herculesteam-augeasproviders_pam (v2.3.0)
+├── herculesteam-augeasproviders_shellvar (v4.1.0)
+├── herculesteam-augeasproviders_sysctl (v2.6.2)
+├── kemra102-auditd (v2.2.0)
+├── puppet-alternatives (v3.0.0)
+├── puppet-cron (v2.0.0)
+├── puppet-firewalld (v4.4.0)
+├── puppet-logrotate (v5.0.0)
+├── puppet-nftables (v1.3.0)
+├── puppetlabs-augeas_core (v1.2.0)
+├── puppetlabs-concat (v7.1.1)
+├── puppetlabs-firewall (v2.8.1)
+├── puppetlabs-inifile (v5.2.0)
+├── puppetlabs-mailalias_core (v1.1.0)
+├── puppetlabs-mount_core (v1.1.0)
+├── puppetlabs-ntp (v8.5.0)
+├── puppetlabs-reboot (v2.4.0)
+├── puppetlabs-stdlib (v7.0.0)
+└── puppetlabs-translate (v2.2.0)
+/etc/puppetlabs/code/modules (no modules installed)
+/opt/puppetlabs/puppet/modules
+├── puppetlabs-cd4pe_jobs (v1.5.0)
+├── puppetlabs-enterprise_tasks (v0.1.0)
+├── puppetlabs-facter_task (v1.1.0)
+├── puppetlabs-facts (v1.4.0)
+├── puppetlabs-package (v2.1.0)
+├── puppetlabs-pe_bootstrap (v0.3.0)
+├── puppetlabs-pe_concat (v1.1.1)
+├── puppetlabs-pe_databases (v2.2.0)
+├── puppetlabs-pe_hocon (v2019.0.0)
+├── puppetlabs-pe_infrastructure (v2018.1.0)
+├── puppetlabs-pe_inifile (v1.1.3)
+├── puppetlabs-pe_install (v2018.1.0)
+├── puppetlabs-pe_nginx (v2017.1.0)
+├── puppetlabs-pe_patch (v0.13.0)
+├── puppetlabs-pe_postgresql (v2016.5.0)
+├── puppetlabs-pe_puppet_authorization (v2016.2.0)
+├── puppetlabs-pe_r10k (v2016.2.0)
+├── puppetlabs-pe_repo (v2018.1.0)
+├── puppetlabs-pe_staging (v0.3.3)
+├── puppetlabs-pe_support_script (v3.0.0)
+├── puppetlabs-puppet_conf (v1.2.0)
+├── puppetlabs-puppet_enterprise (v2018.1.0)
+├── puppetlabs-puppet_metrics_collector (v7.0.5)
+├── puppetlabs-python_task_helper (v0.5.0)
+├── puppetlabs-reboot (v4.1.0)
+├── puppetlabs-ruby_task_helper (v0.6.0)
+└── puppetlabs-service (v2.1.0)
+[root@puppet ~]#
+```
