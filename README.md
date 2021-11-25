@@ -458,7 +458,7 @@ Outputs:
 
 Login to Foreman 3.0.1 GUI and refer to the doc:
 
-* https://github.com/garyttt/freeipa_puppet_foreman/blob/main/ansible/Configure_CIS_Profile_for_Foreman.doc
+* https://github.com/garyttt/freeipa_puppet_foreman/blob/main/ansible/Configure_CIS_Profile_for_Foreman.pdf
 
 The doc describes the steps to define Host Group which is a logical grouping for all hosts to be OS Hardened, first we must import and update the 'production' environment puppet classes, then we add 'cis_profile' class to 'cis_profile' Host Group. After which we will select and add all hosts to 'cis_profile' Host Group.
 
