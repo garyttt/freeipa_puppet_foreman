@@ -453,3 +453,15 @@ Outputs:
 └── puppetlabs-service (v2.1.0)
 [root@puppet ~]#
 ```
+
+# Centralized OS Hardening Dashboard - How to create cis_profile host-group in Foreman
+
+Login to Foreman 3.0.1 GUI and refer to the doc:
+
+* https://github.com/garyttt/freeipa_puppet_foreman/blob/main/ansible/Configure_CIS_Profile_for_Foreman.doc
+
+The doc describes the steps to define Host Group which is a logical grouping for all hosts to be OS Hardened, first we must import and update the 'production' environment puppet classes, then we add 'cis_profile' class to 'cis_profile' Host Group. After which we will select and add all hosts to 'cis_profile' Host Group.
+
+The only Smart Class Parameter needs to be changed is:
+* enforcement_level: from '1' to '2'
+
