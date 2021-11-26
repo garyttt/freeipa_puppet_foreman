@@ -27,9 +27,9 @@
     ansible_python_interpreter: "/usr/bin/python3"
     # Please customize the next few parameters
     DNS_SERVER1: "192.168.159.2"
-    DNS_SERVER2: "8.8.8.8"
-    REVERSE_ZONE1: "168.192.in-addr.arpa"
-    REVERSE_ZONE2: "8.in-addr.arpa"
+    # DNS_SERVER2: "8.8.8.8"
+    REVERSE_ZONE1: "159.168.192.in-addr.arpa"
+    # REVERSE_ZONE2: "8.in-addr.arpa"
     EMAILDOMAIN: "example.local"
   vars_prompt:
     - name: IPA_IP
@@ -87,8 +87,7 @@
           --ip-address={{ IPA_IP }} --hostname={{ IPA_FQDN }} \
           --domain={{ IPA_DOMAIN }} --realm={{ IPA_REALM }} \
           --setup-dns --no-dnssec-validation --no-host-dns \
-          --forwarder={{ DNS_SERVER1 }} --forwarder={{ DNS_SERVER2 }} --forward-policy=first \
-          --reverse-zone={{ REVERSE_ZONE1 }} --reverse-zone={{ REVERSE_ZONE2 }} --allow-zone-overlap \
+          --forwarder={{ DNS_SERVER1 }} --forward-policy=first --reverse-zone={{ REVERSE_ZONE1 }} \
           --no-ntp --no-ui-redirect --mkhomedir --idstart=60001 -U
       register: output
       ignore_errors: yes

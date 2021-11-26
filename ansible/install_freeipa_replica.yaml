@@ -28,9 +28,7 @@
     IPA_DOMAIN: "dev.example.local"
     IPA_REALM: "DEV.EXAMPLE.LOCAL"
     DNS_SERVER1: "192.168.159.2"
-    DNS_SERVER2: "8.8.8.8"
-    REVERSE_ZONE1: "168.192.in-addr.arpa"
-    REVERSE_ZONE2: "8.in-addr.arpa"
+    REVERSE_ZONE1: "159.168.192.in-addr.arpa"
   vars_prompt:
     - name: IPA_FQDN
       prompt: The Fully Qualified Domain Name of the IPA Primary Master (CA-CRL)), press Enter for default of ipa.example.local"
@@ -118,8 +116,7 @@
         umask 0022   
         ipa-replica-install --ip-address `hostname -i` \
           --setup-dns --no-dnssec-validation --no-host-dns \
-          --forwarder={{ DNS_SERVER1 }} --forwarder={{ DNS_SERVER2 }} --forward-policy=first \
-          --reverse-zone={{ REVERSE_ZONE1 }} --reverse-zone={{ REVERSE_ZONE2 }} --allow-zone-overlap \
+          --forwarder={{ DNS_SERVER1 }} --forward-policy=first --reverse-zone={{ REVERSE_ZONE1 }} \
           --no-ui-redirect --mkhomedir -U
       register: output
       ignore_errors: yes
