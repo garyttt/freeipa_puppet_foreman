@@ -163,6 +163,8 @@ OR
 Unknown host ipa.example.local: Host 'ipa2.example.local' does not have corresponding DNS A/AAAA record
 OR
 Unknown host ipa2.example.local: Host 'ipa2.example.local' does not have corresponding DNS A/AAAA record
+
+To fix this, we can easily add 'example.local' DNS Zone in IPA GUI and the required 'ipa.example.local.' and 'ipa2.example.local.' DNS 'A' Resource Records (note the trailing dot). Once this is done 'ipa-replica-manage list' will show no error.
 ```
 
 # Install FreeIPA Client at multiple remote hosts
