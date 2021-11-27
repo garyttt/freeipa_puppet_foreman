@@ -205,6 +205,9 @@ ipa-client-install --uninstall
 
 1. Login as remote_user (gtay) at the remote_host (ipa) and clone the GIT Repo.
 ```bash
+kinit admin
+ipa config-mod --defaultshell=/bin/bash
+ipa config-mod --emaildomain=example.local
 git clone https://github.com/garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
 kinit admin
