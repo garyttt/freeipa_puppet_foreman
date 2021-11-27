@@ -49,6 +49,7 @@ ln -sf /usr/share/zoneinfo/Asia/Singapore /etc/localtime
 5. Ensure the run_user@controller (gtay@centos8) SSH public key is authorized by remote_user@remote_host (gtay@ALL_VMs).
 6. Ensure the remote_user (gtay) has sudo right at the remote_host (ALL VMs).
 7. Ensure curl and GIT client are installed at ALL VMs.
+8. Ensure ntpd service is inactive and chronyd service is active at ALL VMs.
 
 # Centralized UNIX Authentication: FreeIPA Primary and Secondary Master
 
@@ -82,12 +83,13 @@ The Directory Manager password:
 ```
 4. When the current task is 'Install/Configure FreeIPA Server', launch another terminal session, login as remote_user (gtay) at remote host (ipa), and tail the IPA Server Install log.
 ```bash
-tail -100f /var/log/ipaserver-install.log
+sudo tail -100f /var/log/ipaserver-install.log
 ```
 5. When it shows 'INFO The ipa-server-install command was successful', Ctrl-C to break the tailing, and restart IPA. If this is the first FreeIPA Server Install, enable it as the default CRL Generator.
 ---
 Login as root:
 ```bash
+sudo -i
 ipactl restart
 ipactl status
 ipa-crlgen-manage enable
@@ -129,34 +131,36 @@ The admin Kerberos password:
 ```
 9. When the current task is 'Install/Configure FreeIPA Replica', launch another terminal session, login as remote_user (gtay) at remote host (ipa2), and tail the IPA Replica Install log.
 ```bash
-tail -100f /var/log/ipareplica-install.log
+sudo tail -100f /var/log/ipareplica-install.log
 ```
-10.  When it shows 'INFO The ipa-replica-install command was successful', Ctrl-C to break the tailing, and restart IPA.
+10. When it shows 'INFO The ipa-replica-install command was successful', Ctrl-C to break the tailing, and restart IPA.
 ---
 Login as root at ipa2:
 ```bash
+sudo -i
 ipactl restart
 ipactl status
 ```
-11.   If there is failure and re-installation is needed:
+11. If there is failure and re-installation is needed:
 ---
-Login as root at Primary Master:
+Login as root at Primary Master (ipa):
 ```bash
 ipa-replica-manage del ipa2.example.local --force
+# Note: there will be error if you have not performed the fix as per step 14.
 ```
-Login as root at Replica Master:
+Login as root at Replica Master (ipa2):
 ```bash
 ipa-server-install --uninstall
 dnf remove -y sssd-ipa 389-ds-core
 ```
-12.   Else continue with CA Server Install, ensure CRL Generator status is 'disabled' as Primary Master is acting as it.
+12. Else continue with CA Server Install, ensure CRL Generator status is 'disabled' as Primary Master is acting as it.
 ```bash
 ipa-ca-install
 ipa-crlgen-manage status
 ```
-13.   Verify FreeIPA GUI https://ipa2.example.local/ipa/ui
+13. Verify FreeIPA GUI https://ipa2.example.local/ipa/ui
 
-14.   Note that as there is no DNS Server serving zone 'example.local', the following messages are normal.
+14. Note that as there is no DNS Server serving zone 'example.local', the following messages are normal.
 ```
 ipaserver.dns_data_management: ERROR unable to resolve host name ipa.example.local. to IP address, ipa-ca DNS record will be incomplete
 OR
@@ -466,4 +470,10 @@ The doc describes the steps to define Host Group which is a logical grouping for
 
 The only Smart Class Parameter needs to be changed is:
 * enforcement_level: from '1' to '2'
+
+# Configure FreeIPA LDAP User Authentication for PE and Foreman
+
+Please refer to:
+
+* https://github.com/garyttt/freeipa_puppet_foreman/blob/main/ansible/Configure_FreeIPA_LDAP_Auth_for_PE_and_Foreman.pdf
 
