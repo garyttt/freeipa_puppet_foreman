@@ -24,13 +24,16 @@
     ansible_python_interpreter: "/usr/bin/python3"
   vars_prompt:
     - name: EMAIL
-      prompt: IPA SSL Cert Email Contact, press Enter for default of garyttt@singnet.com.sg
+      prompt: IPA Apache Web Server SSL Cert EMAIL Contact, press Enter for default of garyttt@singnet.com.sg
       default: "garyttt@singnet.com.sg"
       private: no
     - name: FQDN
-      prompt: IPA SSL Cert FQDN, press Enter for default of ipa.example.local
+      prompt: IPA Apache Web Server SSL Cert FQDN, press Enter for default of ipa.example.local
       default: "ipa.example.local"
       private: no
+    - name: PASSPHRASE
+      prompt: Pass Phrase for /var/lib/ipa/private/httpd.key
+      private: yes
   tasks:
     - name: Put SELinux in permissive mode, logging actions that would be blocked.
       selinux:
@@ -49,60 +52,38 @@
       yum:
         name: [ 'certbot', 'python3-certbot-apache' ]
         state: latest
-    - name: Verify certbot version and take a backup
+    - name: Verify certbot version and take a backup of current certs and private key
       shell: |
         certbot --version
-        tar zcf /root/var_lib_ipa_certs_private_`date '+%d'`.tgz /var/lib/ipa/certs /var/lib/ipa/private
-    # - name: Install/Configure Let's Encrypt SSL Cert Manual - Method 1
-    #   shell: |
-    #     mkdir ~/freeipa-certs
-    #     cd ~/freeipa-certs
-    #     CERTS=("isrgrootx1.pem" "isrg-root-x2.pem" "lets-encrypt-r3.pem" "lets-encrypt-e1.pem" "lets-encrypt-r4.pem" "lets-encrypt-e2.pem")
-    #     for CERT in "${CERTS[@]}"
-    #     do
-    #       curl -o $CERT "https://letsencrypt.org/certs/$CERT"
-    #     done
-    #     CERTS=("isrgrootx1.pem" "isrg-root-x2.pem" "lets-encrypt-r3.pem" "lets-encrypt-e1.pem" "lets-encrypt-r4.pem" "lets-encrypt-e2.pem")
-    #     for CERT in "${CERTS[@]}"
-    #     do
-    #       ipa-cacert-manage install $CERT
-    #     done
-    #     ipa-certupdate
-    #     systemctl stop httpd
-    #     certbot certonly --standalone --preferred-challenges http --agree-tos -n -d {{ FQDN }} -m {{ EMAIL }}
-    #     ls /etc/letsencrypt/live/{{ FQDN }}
-    #     systemctl restart httpd
-    #     ipa-server-certinstall -w -d /etc/letsencrypt/live/{{ FQDN }}/privkey.pem /etc/letsencrypt/live/{{ FQDN }}/cert.pem --pin=''
-    #     ipactl restart
-    #   register: output
-    #   wait_for:
-    #   path:  "/var/log/ipaservercert-install.log"
-    #   delay: 10
-    #   timeout: 30
-    #   state: present
-    #   msg: "The ipa-server-certinstall command was successful"      
-    #   ignore_errors: yes
-    #   no_log: yes
-    # # Uncomment the debug task ONLY when you need to troubleshoot as the output contains dirmgr pw
-    # - debug:
-    #     var: output
-    - name: Install/Configure Let's Encrypt SSL Cert with freeipa-letsencrypt - Method 2
+        [ ! -f /var/lib/ipa/certs/httpd.crt.orig ]   && cp -p /var/lib/ipa/certs/httpd.crt   /var/lib/ipa/certs/httpd.crt.orig
+        [ ! -f /var/lib/ipa/private/httpd.key.orig ] && cp -p /var/lib/ipa/private/httpd.key /var/lib/ipa/private/httpd.key.orig
+    - name: Install/Configure Let's Encrypt SSL Cert with freeipa-letsencrypt scripts - Method 2 - Copy
+      copy:
+        src: freeipa-letsencrypt
+        dest: /root/
+        remote_src: no
+    - name: Install/Configure Let's Encrypt SSL Cert with freeipa-letsencrypt scripts - Method 2 - Execute
       shell: |
-        cd freeipa-letsencrypt
-        sed -i s/^EMAIL=.*/FQDN={{ FQDN }}/ renew-le.sh
+        cd /root/freeipa-letsencrypt
+        sed -i s/^EMAIL=.*/FQDN={{ EMAIL }}/ renew-le.sh
         sed -i s/^FQDN=.*/FQDN={{ FQDN }}/ setup-le.sh
-        # bash ./setup-le.sh
-        # systemctl restart httpd
-        # ipa-certupdate
+        sed -i /renew-le.sh/s/^/#/ setup-le.sh  # renew-le.sh --first-time is interactive and will ask for private key
+        chmod +x renew-le.sh setup-le.sh
+        bash ./setup-le.sh
       register: output
     - debug:
         var: output
-    # - name: Check status
-    #   shell: |
-    #     ipactl status && systemctl status ipa
-    #     openssl s_client -showcerts -verify 5 -connect {{ FQDN }}:443
-    #   register: output
-    # - debug:
-    #     var: output
-
+    - name: Dispaly post setup one-time instructions
+      shell: |
+        cat <<EOF >&1
+        Please login as root at Primary Master {{ FQDN }} and complete the setup by running the followings:
+        /root/freeipa-letsencrypt/renew-le.sh --first-time
+        systemctl restart httpd
+        ipa-certupdate
+        ipactl status && systemctl status ipa
+        openssl s_client -showcerts -verify 5 {{ FQDN }}:443
+        EOF
+      register: output
+    - debug:
+        var: output
 

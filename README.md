@@ -269,6 +269,40 @@ ipa user-show --all admin.0001
 ```
 Note that it is possible to create multiple OTP Tokens for the same user.
 
+# Secure FreeIPA Server With Let’s Encrypt SSL Certificate
+
+Ref: https://computingforgeeks.com/secure-freeipa-server-with-lets-encrypt-ssl-certificate/
+
+1. Login as run_user (gtay) at the controller (centos8) and clone the GIT Repo if it is not already done.
+```bash
+git clone https://github.com/garyttt/freeipa_puppet_foreman.git
+cd freeipa_puppet_foreman/ansible
+```
+2. Take a backup of current Apache Web Server SSL Cert and Key
+```
+cp -p /var/lib/ipa/certs/httpd.crt   /var/lib/ipa/certs/httpd.crt.orig
+cp -p /var/lib/ipa/private/httpd.key /var/lib/ipa/private/httpd.key.orig
+```
+3. Run Ansible for FreeIPA SSL Install, please provide Email/FQDN/Pass Phrase for Apache SSL Cert Private Key.
+```bash
+ansible-playbook -vv -i inventory/hosts -l ipa install_freeipa_ssl.yaml -K
+```
+Inputs:
+```
+IPA Apache Web Server SSL Cert EMAIL Contact, press Enter for default of garyttt@singnet.com.sg [garyttt@singnet.com.sg]: 
+IPA Apache Web Server SSL Cert FQDN, press Enter for default of ipa.example.local [ipa.example.local]: 
+Pass Phrase for /var/lib/ipa/private/httpd.key: 
+```
+4. When the playbook is run successfully, perform post setup one-time instructions, and verify SSL connection.
+Login as root at Primary Master (ipa)
+```bash
+/root/freeipa-letsencrypt/renew-le.sh --first-time
+systemctl restart httpd
+ipa-certupdate
+ipactl status && systemctl status ipa
+openssl s_client -showcerts -verify 5 ipa.example.local:443
+```
+
 # Centralized SSH Public Keys
 ---
 * Ref: https://freeipa.readthedocs.io/en/latest/workshop/10-ssh-key-management.html
