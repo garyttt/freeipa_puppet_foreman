@@ -31,9 +31,9 @@
       prompt: IPA Apache Web Server SSL Cert FQDN, press Enter for default of ipa.example.local
       default: "ipa.example.local"
       private: no
-    - name: PASSPHRASE
-      prompt: Pass Phrase for /var/lib/ipa/private/httpd.key
-      private: yes
+    # - name: PASSPHRASE
+    #   prompt: Pass Phrase for /var/lib/ipa/private/httpd.key
+    #   private: yes
   tasks:
     - name: Put SELinux in permissive mode, logging actions that would be blocked.
       selinux:

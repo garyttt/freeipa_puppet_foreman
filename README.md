@@ -283,7 +283,7 @@ cd freeipa_puppet_foreman/ansible
 cp -p /var/lib/ipa/certs/httpd.crt   /var/lib/ipa/certs/httpd.crt.orig
 cp -p /var/lib/ipa/private/httpd.key /var/lib/ipa/private/httpd.key.orig
 ```
-3. Run Ansible for FreeIPA SSL Install, please provide Email/FQDN/Pass Phrase for Apache SSL Cert Private Key.
+3. Run Ansible for FreeIPA SSL Install, please provide Email/FQDN.
 ```bash
 ansible-playbook -vv -i inventory/hosts -l ipa install_freeipa_ssl.yaml -K
 ```
@@ -291,7 +291,6 @@ Inputs:
 ```
 IPA Apache Web Server SSL Cert EMAIL Contact, press Enter for default of garyttt@singnet.com.sg [garyttt@singnet.com.sg]: 
 IPA Apache Web Server SSL Cert FQDN, press Enter for default of ipa.example.local [ipa.example.local]: 
-Pass Phrase for /var/lib/ipa/private/httpd.key: 
 ```
 4. When the playbook is run successfully, perform post setup one-time instructions, and verify SSL connection.
 Login as root at Primary Master (ipa)
