@@ -304,6 +304,13 @@ ipactl status && systemctl status ipa
 openssl s_client -showcerts -verify 5 ipa.example.local:443
 ```
 
+Note: as example.local is a POC (Proof Of Concept) private domain, the 'renew-le.sh --first-time' will fail with the following error:
+```
+An unexpected error occurred:
+The server will not issue certificates for the identifier :: Error creating new order :: Cannot issue for "ipa.example.local": Domain name does not end with a valid public suffix (TLD)
+Ask for help or search for solutions at https://community.letsencrypt.org. See the logfile /var/log/letsencrypt/letsencrypt.log or re-run Certbot with -v for more details.
+```
+
 # Centralized SSH Public Keys
 ---
 * Ref: https://freeipa.readthedocs.io/en/latest/workshop/10-ssh-key-management.html
