@@ -282,6 +282,7 @@ cd freeipa_puppet_foreman/ansible
 ```
 cp -p /var/lib/ipa/certs/httpd.crt   /var/lib/ipa/certs/httpd.crt.orig
 cp -p /var/lib/ipa/private/httpd.key /var/lib/ipa/private/httpd.key.orig
+tar cvf /root/var_lib_ipa_certs_private.tar /var/lib/ipa/certs/httpd.crt /var/lib/ipa/private/httpd.key
 ```
 3. Run Ansible for FreeIPA SSL Install, please provide Email/FQDN.
 ```bash
