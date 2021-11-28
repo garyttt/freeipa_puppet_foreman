@@ -65,7 +65,7 @@
     - name: Install/Configure Let's Encrypt SSL Cert with freeipa-letsencrypt scripts - Method 2 - Execute
       shell: |
         cd /root/freeipa-letsencrypt
-        sed -i s/^EMAIL=.*/FQDN={{ EMAIL }}/ renew-le.sh
+        sed -i s/^EMAIL=.*/EMAIL={{ EMAIL }}/ renew-le.sh
         sed -i s/^FQDN=.*/FQDN={{ FQDN }}/ setup-le.sh
         sed -i /renew-le.sh/s/^/#/ setup-le.sh  # renew-le.sh --first-time is interactive and will ask for private key
         chmod +x renew-le.sh setup-le.sh
