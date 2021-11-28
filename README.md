@@ -295,6 +295,8 @@ IPA Apache Web Server SSL Cert FQDN, press Enter for default of ipa.example.loca
 4. When the playbook is run successfully, perform post setup one-time instructions, and verify SSL connection.
 Login as root at Primary Master (ipa)
 ```bash
+cat /var/lib/ipa/passwds/ipa.example.local-443-RSA && echo 
+# When the renew-le.sh is run for the first-time and it asks for the pass phrase, enter the context of the above file
 /root/freeipa-letsencrypt/renew-le.sh --first-time
 systemctl restart httpd
 ipa-certupdate

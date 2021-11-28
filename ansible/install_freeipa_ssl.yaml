@@ -55,8 +55,8 @@
     - name: Verify certbot version and take a backup of current certs and private key
       shell: |
         certbot --version
-        [ ! -f /var/lib/ipa/certs/httpd.crt.orig ]   && cp -p /var/lib/ipa/certs/httpd.crt   /var/lib/ipa/certs/httpd.crt.orig
-        [ ! -f /var/lib/ipa/private/httpd.key.orig ] && cp -p /var/lib/ipa/private/httpd.key /var/lib/ipa/private/httpd.key.orig
+        [ ! -f /var/lib/ipa/certs/httpd.crt.orig ]   && cp -p /var/lib/ipa/certs/httpd.crt   /var/lib/ipa/certs/httpd.crt.orig   || true
+        [ ! -f /var/lib/ipa/private/httpd.key.orig ] && cp -p /var/lib/ipa/private/httpd.key /var/lib/ipa/private/httpd.key.orig || true
     - name: Install/Configure Let's Encrypt SSL Cert with freeipa-letsencrypt scripts - Method 2 - Copy
       copy:
         src: freeipa-letsencrypt
@@ -77,6 +77,8 @@
       shell: |
         cat <<EOF >&1
         Please login as root at Primary Master {{ FQDN }} and complete the setup by running the followings:
+        cat /var/lib/ipa/passwds/ipa.example.local-443-RSA && echo 
+        # When the renew-le.sh is run for the first-time and it asks for the pass phrase, enter the context of the above file
         /root/freeipa-letsencrypt/renew-le.sh --first-time
         systemctl restart httpd
         ipa-certupdate
