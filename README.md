@@ -216,6 +216,35 @@ bash -vx ./ipa_add_users.sh
 bash -vx ./ipa_add_groups_memberships.sh
 ```
 
+# FreeIPA Backup and Restore
+
+Please setup two cron jobs at Primary (ipa) and Seconday Master (ipa2), both the Primary and Secondary Master should run the cron at different timing, example 00:00 for Primray Master and 01:00 for Secondary Master as there will be short burst of IPA Service downtime for running 'ipa-backup', typically few minutes.
+
+Login as root:
+```
+# One time effort to create /root/logs
+# mkdir ~/logs
+# Create the following crons
+# crontab -l Primary Master
+0 0 * * * cd /var/lib/ipa/backup && /sbin/ipa-backup > ~/logs/ipa_backup_`date "+\%d"`.log 2>&1 || true
+30 0 * * * find /var/lib/ipa/backup -mtime +30 | xargs rm -rf > /dev/null 2>&1 || true
+# crontab -l Secondary Master
+0 1 * * * cd /var/lib/ipa/backup && /sbin/ipa-backup > ~/logs/ipa_backup_`date "+\%d"`.log 2>&1 || true
+30 1 * * * find /var/lib/ipa/backup -mtime +30 | xargs rm -rf > /dev/null 2>&1 || true
+```
+
+Each full backup is presented as a folder in /var/lib/ipa/backup, If there is a real need for Disaster Recovery, the LDAP data backed up can be restored back using 'ipa-restore'.
+```
+cd /var/lib/ipa/backup
+ipa-restore ipa-full-2021-MM-DD-HH-MM-SS
+```
+
+# FreeIPA FAQ Troubleshooting and Tips
+
+Please refer to:
+
+* https://github.com/garyttt/freeipa_puppet_foreman/blob/main/ansible/FreeIPA_FAQ_Troubleshooting_and_Tips.pdf
+
 # Two-Factoe Authentication 2FA (Global or Per-User)
 ---
 Ref: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/linux_domain_identity_authentication_and_policy_guide/otp
