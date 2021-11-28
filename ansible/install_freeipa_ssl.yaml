@@ -1,0 +1,108 @@
+---
+# How to run this playbook:
+# 0 List hosts:         ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --list-hosts install_freeipa_ssl.yaml -K
+# 1 Syntax check:       ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] --syntax-check install_freeipa_ssl.yaml -K
+# 2.1 Dry-Run playbook: ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] -C install_freeipa_ssl.yaml -K
+# 2.2 Dry-Run tasks:    ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_ssl.yaml -K
+#  set check_mode: yes for selected tasks
+# 3 Actual-Run tasks:   ansible-playbook -vvv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_ssl.yaml -K
+#  set check_mode: no for selected tasks
+# 4 Actual-Run playbook: ansible-playbook -vv -i inventory/hosts -l [hostname|hostgrp] install_freeipa_ssl.yaml -K
+# Pre-requisites: 
+# 1. RHEL Linux for remote host 
+# (Note: Ubuntu 20.04 does not support FreeIPA as of Apr 2021 and 18.04 has un-fixed installation bug)
+# 2. run_user@controller_host SSH key trusted by dacadmin@remote_host
+# 3. Make sure IPA IP is in DNS or /etc/hosts or you can add --no-host-dns option to avoid hostname against DNS
+
+# Ref: https://computingforgeeks.com/secure-freeipa-server-with-lets-encrypt-ssl-certificate/
+
+- name: Install FreeIPA Let’s Encrypt SSL Cert
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+  vars_prompt:
+    - name: EMAIL
+      prompt: IPA SSL Cert Email Contact, press Enter for default of garyttt@singnet.com.sg
+      default: "garyttt@singnet.com.sg"
+      private: no
+    - name: FQDN
+      prompt: IPA SSL Cert FQDN, press Enter for default of ipa.example.local
+      default: "ipa.example.local"
+      private: no
+  tasks:
+    - name: Put SELinux in permissive mode, logging actions that would be blocked.
+      selinux:
+        policy: targeted
+        state: permissive
+      ignore_errors: yes
+    - name: YUM Update 
+      yum: 
+        name: '*'
+        state: latest
+    - name: Install EPEL
+      yum:
+        name: "epel-release"
+        state: present
+    - name: Install certbot
+      yum:
+        name: [ 'certbot', 'python3-certbot-apache' ]
+        state: latest
+    - name: Verify certbot version and take a backup
+      shell: |
+        certbot --version
+        tar zcf /root/var_lib_ipa_certs_private_`date '+%d'`.tgz /var/lib/ipa/certs /var/lib/ipa/private
+    # - name: Install/Configure Let's Encrypt SSL Cert Manual - Method 1
+    #   shell: |
+    #     mkdir ~/freeipa-certs
+    #     cd ~/freeipa-certs
+    #     CERTS=("isrgrootx1.pem" "isrg-root-x2.pem" "lets-encrypt-r3.pem" "lets-encrypt-e1.pem" "lets-encrypt-r4.pem" "lets-encrypt-e2.pem")
+    #     for CERT in "${CERTS[@]}"
+    #     do
+    #       curl -o $CERT "https://letsencrypt.org/certs/$CERT"
+    #     done
+    #     CERTS=("isrgrootx1.pem" "isrg-root-x2.pem" "lets-encrypt-r3.pem" "lets-encrypt-e1.pem" "lets-encrypt-r4.pem" "lets-encrypt-e2.pem")
+    #     for CERT in "${CERTS[@]}"
+    #     do
+    #       ipa-cacert-manage install $CERT
+    #     done
+    #     ipa-certupdate
+    #     systemctl stop httpd
+    #     certbot certonly --standalone --preferred-challenges http --agree-tos -n -d {{ FQDN }} -m {{ EMAIL }}
+    #     ls /etc/letsencrypt/live/{{ FQDN }}
+    #     systemctl restart httpd
+    #     ipa-server-certinstall -w -d /etc/letsencrypt/live/{{ FQDN }}/privkey.pem /etc/letsencrypt/live/{{ FQDN }}/cert.pem --pin=''
+    #     ipactl restart
+    #   register: output
+    #   wait_for:
+    #   path:  "/var/log/ipaservercert-install.log"
+    #   delay: 10
+    #   timeout: 30
+    #   state: present
+    #   msg: "The ipa-server-certinstall command was successful"      
+    #   ignore_errors: yes
+    #   no_log: yes
+    # # Uncomment the debug task ONLY when you need to troubleshoot as the output contains dirmgr pw
+    # - debug:
+    #     var: output
+    - name: Install/Configure Let's Encrypt SSL Cert with freeipa-letsencrypt - Method 2
+      shell: |
+        cd freeipa-letsencrypt
+        sed -i s/^EMAIL=.*/FQDN={{ FQDN }}/ renew-le.sh
+        sed -i s/^FQDN=.*/FQDN={{ FQDN }}/ setup-le.sh
+        # bash ./setup-le.sh
+        # systemctl restart httpd
+        # ipa-certupdate
+      register: output
+    - debug:
+        var: output
+    # - name: Check status
+    #   shell: |
+    #     ipactl status && systemctl status ipa
+    #     openssl s_client -showcerts -verify 5 -connect {{ FQDN }}:443
+    #   register: output
+    # - debug:
+    #     var: output
+
+
