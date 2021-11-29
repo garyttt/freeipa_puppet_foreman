@@ -210,7 +210,6 @@ ipa config-mod --defaultshell=/bin/bash
 ipa config-mod --emaildomain=example.local
 git clone https://github.com/garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
-kinit admin
 bash -vx ./ipa_add_groups.sh
 bash -vx ./ipa_add_users.sh
 bash -vx ./ipa_add_groups_memberships.sh
@@ -245,7 +244,7 @@ Please refer to:
 
 * https://github.com/garyttt/freeipa_puppet_foreman/blob/main/ansible/FreeIPA_FAQ_Troubleshooting_and_Tips.pdf
 
-# Two-Factoe Authentication 2FA (Global or Per-User)
+# Two-Factor Authentication 2FA (Global or Per-User)
 ---
 Ref: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/linux_domain_identity_authentication_and_policy_guide/otp
 
@@ -453,7 +452,7 @@ apt-get remove -y puppet-agent
 
 * Ref: https://github.com/garyttt/cis_profile
 
-1. Login as root at puppet.example.local and foreman.example.local
+1. Login as root at puppet.example.local and/or foreman.example.local
 2. Follow the instructions, it is as simple as running './install.sh'
 ```bash
 git clone https://github.com/garyttt/cis_profile.git
@@ -473,7 +472,7 @@ If for some reason camptocamp-systemd was not installed to latest 3.0.0 level, p
 ```
 Outputs:
 ```bash
-[root@puppet ~]# puppet module list
+[root@{puppet,foreman} ~]# puppet module list
 /etc/puppetlabs/code/environments/production/modules
 ├── aboe-chrony (v0.3.2)
 ├── camptocamp-augeas (v1.9.0)
@@ -532,8 +531,62 @@ Outputs:
 ├── puppetlabs-reboot (v4.1.0)
 ├── puppetlabs-ruby_task_helper (v0.6.0)
 └── puppetlabs-service (v2.1.0)
-[root@puppet ~]#
+[root@{puppet,foreman} ~]#
 ```
+
+# Reducing Puppet Agent Runtime
+
+Login as root at puppet.example.local and/or foreman.example.local
+
+For practical reasons we should define EXCLUDES so as to reduce the runtime of Puppet Agent and save system resources.
+```
+[root@{puppet,foreman} files]# pwd
+/etc/puppetlabs/code/environments/production/modules/secure_linux_cis/files
+[root@{puppet,foreman} files]#
+[root@{puppet,foreman} files]#
+[root@{puppet,foreman} files]# diff ensure_no_ungrouped.sh.orig ensure_no_ungrouped.sh
+2c2,9
+< df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -nogroup
+---
+> # Reasons to exclude:
+> # /var/cache/private/fwupdmgr - Ubuntu Firmware Update Manager work files
+> # /var/lib/docker/overlay2 - Docker work files
+> # /var/lib/kubelet/pods - Kubernetes work files
+> # /var/opt/microsoft/omsagent - Azure Linux VM cloud-init work files
+> EXCLUDES="^/var/cache/private/fwupdmgr|^/var/lib/docker/overlay2|^/var/lib/kubelet/pods|^/var/opt/microsoft/omsagent"
+> df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -nogroup | egrep -v "$EXCLUDES"
+>
+[root@{puppet,foreman} files]#
+[root@{puppet,foreman} files]#
+[root@{puppet,foreman} files]#  diff ensure_no_unowned.sh.orig ensure_no_unowned.sh
+2c2,9
+< df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -nouser
+---
+> # Reasons to exclude:
+> # /var/cache/private/fwupdmgr - Ubuntu Firmware Update Manager work files
+> # /var/lib/docker/overlay2 - Docker work files
+> # /var/lib/kubelet/pods - Kubernetes work files
+> # /var/opt/microsoft/omsagent - Azure Linux VM cloud-init work files
+> EXLUDES="^/var/cache/private/fwupdmgr|^/var/lib/docker/overlay2|^/var/lib/kubelet/pods|^/var/opt/microsoft/omsagent"
+> df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -nouser | egrep -v "$EXCLUDES"
+>
+[root@{puppet,foreman} files]#
+[root@{puppet,foreman} files]#
+[root@{puppet,foreman} files]# diff ensure_no_world_writable.sh.orig ensure_no_world_writable.sh
+1c1,9
+< df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -type f -perm -0002
+---
+> #!/bin/bash
+> # Reasons to exclude:
+> # /var/cache/private/fwupdmgr - Ubuntu Firmware Update Manager work files
+> # /var/lib/docker/overlay2 - Docker work files
+> # /var/lib/kubelet/pods - Kubernetes work files
+> # /var/opt/microsoft/omsagent - Azure Linux VM cloud-init work files
+> EXLUDES="^/var/cache/private/fwupdmgr|^/var/lib/docker/overlay2|^/var/lib/kubelet/pods|^/var/opt/microsoft/omsagent"
+> df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -type f -perm -0002 | egrep -v "$EXCLUDES"
+>
+```
+
 
 # Centralized OS Hardening Dashboard - How to create cis_profile host-group in Foreman
 
