@@ -599,9 +599,21 @@ The doc describes the steps to define Host Group which is a logical grouping for
 The only Smart Class Parameter needs to be changed is:
 * enforcement_level: from '1' to '2'
 
-# Configure FreeIPA LDAP User Authentication for PE and Foreman
+# Configure FreeIPA LDAP User Authentication for PE and Foreman and Softerra LDAP Browser
 
 Please refer to:
-
 * https://github.com/garyttt/freeipa_puppet_foreman/blob/main/ansible/Configure_FreeIPA_LDAP_Auth_for_PE_and_Foreman.pdf
 
+Once the IPA 'ldapread' account has been created, you could also use it at the profile definition of Softerra LDAP Browser 4.5 which is a freeware for Windows desktop that makes IPA LDAP Browsing a walk in the garden.
+* https://www.ldapadministrator.com/download.htm#browser
+
+Definition of 'ipa.example.local' profile (Properties) in Softerra LDAP Browser 4.5:
+* Host: ipa.example.local
+* Port: 389 or 636
+* BaseDN: dc=dev,dc=example,dc=local
+* Use Secure Connection checked if port 636
+* Other Credentials / Mechanisem: Simple
+* Other Credentials / Principal: uid=ldapread,cn=users,cn=accounts,dc=dev,dc=example,dc=local
+* Other Credentials / Password: ********
+* Other Credentials / Save password checked
+* Entry / Filters: (objectClass=*)
