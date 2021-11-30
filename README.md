@@ -627,7 +627,7 @@ Definition of 'ipa.example.local' profile (Properties) in Softerra LDAP Browser 
 * Other Credentials / Save password checked
 * Entry / Filters: (objectClass=*)
 
-# Notable Foreman issues due to version upgrade, OS patching, Performance Tunning or others
+# Notable Foreman issues due to version upgrade, OS patching, Performance Tuning or others
 
 1. Foreman puppetserver error '(Error) Cannot determine basic system flavour' post 2.5 to 3.0.1 upgrade.
 * Root Cause: default java.io.tmpdir is /tmp and not having 'exec' file system permission. 
@@ -644,9 +644,25 @@ Definition of 'ipa.example.local' profile (Properties) in Softerra LDAP Browser 
 /etc/httpd/conf.d/autoindex.conf
 /etc/httpd/conf.modules.d/00-*.conf
 /etc/httpd/conf.modules.d/01-*.conf
-/etc/httpd/conf.modules.d/README
 ```
 
 3. All puppet agents encountered port 8140 connection issues
 * Root Cause: Foreman server was not fine-tuned for performance.
 * Fix: please refer to 'Centralized Configuration - Install Foreman'.
+
+4. Foreman server OS Patching error 'Problem: package foreman-3.0.1-1.el8.noarch requires rubygem(net-ssh) = 4.2.0, but none of the providers can be installed'.
+```
+[root@foreman ~]# dnf upgrade -y
+Last metadata expiration check: 2:40:29 ago on Tue 30 Nov 2021 12:47:14 PM +08.
+Error:
+ Problem: package foreman-3.0.1-1.el8.noarch requires rubygem(net-ssh) = 4.2.0, but none of the providers can be installed
+  - cannot install both rubygem-net-ssh-5.1.0-2.el8.noarch and rubygem-net-ssh-4.2.0-3.el8.noarch
+  - cannot install both rubygem-net-ssh-4.2.0-3.el8.noarch and rubygem-net-ssh-5.1.0-2.el8.noarch
+  - cannot install the best update candidate for package rubygem-net-ssh-4.2.0-3.el8.noarch
+  - cannot install the best update candidate for package foreman-3.0.1-1.el8.noarch
+(try to add '--allowerasing' to command line to replace conflicting packages or '--skip-broken' to skip uninstallable packages or '--nobest' to use not only best candidate packages)
+```
+* Root Cause: unknown
+* Temp Fix: run 'dnf upgrade -y --nobest'
+
+
