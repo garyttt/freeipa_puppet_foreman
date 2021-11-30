@@ -534,7 +534,17 @@ Outputs:
 [root@{puppet,foreman} ~]#
 ```
 
-# Reducing Puppet Agent Runtime
+# Reducing Puppet Agent Risks in causing OS crahses and SSH login issues
+
+Many OS hardening Puppet Forge modules would contain rules to harden Firewall (host based likes iptables and nftables) and SSH related system settings (host based likes AllowUsers and AllowGroups in SSH Server Configs), these settings could cause server crashes and user login issues, and therefore it is better to exclude these in the HIERA data/os hierachies of OSNAME based Major_Release yaml files.
+
+Please refer to a Shell script for the said risk mitigation, this script is executed as part of CIS Profile ./install.sh.
+* https://github.com/garyttt/cis_profile/blob/main/10_disable_excluded_classes.sh
+
+If you were to run this script manually one-time, prior to that please make a copy of common.yaml as shown in the script to common.pp.orig.
+* cp -p /etc/puppetlabs/code/environments/production/modules/cis_profile/data/common.yaml /etc/puppetlabs/code/environments/production/modules/cis_profile/data/common.yaml.orig
+
+# Reducing Puppet Agent Runtime in scanning for large number of files
 
 Login as root at puppet.example.local and/or foreman.example.local
 
