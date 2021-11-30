@@ -378,7 +378,7 @@ Login as root at foreman:
 ```
 2. If there is failure and re-installation is needed, it is easier to rebuild VM and re-run the install scripts.
 3. Else verify Foreman GUI https://foreman.example.local
-4. Fine tune puppetserver within Foreman for performance, make the modifications as shown and restart puppetserver
+4. Fine tune puppetserver within Foreman for performance, make the modifications as shown and restart puppetserver, these modifications are: increase ReservedCodeCacheSize from 512m to 1G, enable environment-class-cache and multithreading.
 ```bash
 [root@foreman ~]# diff /etc/sysconfig/puppetserver.orig /etc/sysconfig/puppetserver
 9c9
@@ -597,7 +597,6 @@ For practical reasons we should define EXCLUDES so as to reduce the runtime of P
 >
 ```
 
-
 # Centralized OS Hardening Dashboard - How to create cis_profile host-group in Foreman
 
 Login to Foreman 3.0.1 GUI and refer to the doc:
@@ -627,3 +626,27 @@ Definition of 'ipa.example.local' profile (Properties) in Softerra LDAP Browser 
 * Other Credentials / Password: ********
 * Other Credentials / Save password checked
 * Entry / Filters: (objectClass=*)
+
+# Notable Foreman issues due to version upgrade, OS patching, Performance Tunning or others
+
+1. Foreman puppetserver error '(Error) Cannot determine basic system flavour' post 2.5 to 3.0.1 upgrade.
+* Root Cause: default java.io.tmpdir is /tmp and not having 'exec' file system permission. 
+* Fix: backup /etc/sysconfig/puppetserver, append '-Djava.io.tmpdir=/var/tmp' to end of JAVA_ARGS and restart puppetserver.
+* Ref: https://access.redhat.com/solutions/3370091
+
+2. Post OS Patching and reboot, Foreman Apache httpd server failed to start, it breaks the Foreman GUI.
+* Root Cause: some extra '.conf' files other than 05-* which are foreman specific get added to /etc/httpd/conf as well as /etc/httpd/conf.modules.d folders.
+* Fix: backup, inspect and remove the following files and re-patch OS, reboot and verify Apache httpd server.
+```
+/etc/httpd/conf.d/welcome.conf
+/etc/httpd/conf.d/userdir.conf
+/etc/httpd/conf.d/ssl.conf
+/etc/httpd/conf.d/autoindex.conf
+/etc/httpd/conf.modules.d/00-*.conf
+/etc/httpd/conf.modules.d/01-*.conf
+/etc/httpd/conf.modules.d/README
+```
+
+3. All puppet agents encountered port 8140 connection issues
+* Root Cause: Foreman server was not fine-tuned for performance.
+* Fix: please refer to 'Centralized Configuration - Install Foreman'.
