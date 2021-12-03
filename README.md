@@ -174,7 +174,7 @@ ipactl status
 Login as root at IPA Primary Master (ipa):
 ```bash
 ipa-replica-manage del ipa2.example.local --force
-# Note: there will be error if you have not performed the fix as per step 14.
+# Note: there will be error if you have not performed the fix as per last step in this section.
 ```
 Login as root at IPA Replica Master (ipa2):
 ```bash
