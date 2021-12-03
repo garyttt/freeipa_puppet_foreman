@@ -1,0 +1,17 @@
+---
+# How to run this playbook:
+# ansible-playbook -vv -i inventory/hosts -l ppagents uninstall_puppet_agent.yaml
+# Pre-requisites: run_user@controller_host SSH key trusted by remote_user@remote_host
+- name: Uninstall Puppet Agent
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+  tasks:
+  - name: Un-install Puppet Agent
+    shell: "apt-get remove -y puppet-agent || dnf remove -y puppet-agent"
+    register: run_status
+    ignore_errors: yes
+  - debug:
+      var: run_status

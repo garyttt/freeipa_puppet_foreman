@@ -1,0 +1,17 @@
+---
+# How to run this playbook:
+# ansible-playbook -vv -i inventory/hosts -l ipaclients uninstall_freeipa_client.yaml
+# Pre-requisites: run_user@controller_host SSH key trusted by remote_user@remote_host
+- name: Uninstall IPA Client
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+  tasks:
+  - name: Un-enroll IPA Client
+    shell: "ipa-client-install --uninstall -U"
+    register: run_status
+    ignore_errors: yes
+  - debug:
+      var: run_status
