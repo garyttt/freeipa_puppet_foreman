@@ -87,7 +87,7 @@ sudo tail -100f /var/log/ipaserver-install.log
 ```
 5. When it shows 'INFO The ipa-server-install command was successful', Ctrl-C to break the tailing, and restart IPA. If this is the first FreeIPA Server Install, enable it as the default CRL Generator.
 ---
-Login as root:
+Sudo to root at Primary Master (ipa):
 ```bash
 sudo -i
 ipactl restart
@@ -135,7 +135,7 @@ sudo tail -100f /var/log/ipareplica-install.log
 ```
 10. When it shows 'INFO The ipa-replica-install command was successful', Ctrl-C to break the tailing, and restart IPA.
 ---
-Login as root at ipa2:
+Sudo to root at Replica Master (ipa2):
 ```bash
 sudo -i
 ipactl restart
@@ -143,24 +143,26 @@ ipactl status
 ```
 11. If there is failure and re-installation is needed:
 ---
-Login as root at Primary Master (ipa):
+Login as root at IPA Primary Master (ipa):
 ```bash
 ipa-replica-manage del ipa2.example.local --force
 # Note: there will be error if you have not performed the fix as per step 14.
 ```
-Login as root at Replica Master (ipa2):
+Login as root at IPA Replica Master (ipa2):
 ```bash
 ipa-server-install --uninstall
 dnf remove -y sssd-ipa 389-ds-core
 ```
-12. Else continue with CA Server Install, ensure CRL Generator status is 'disabled' as Primary Master is acting as it.
+12. Else continue with CA Server Install, ensure CRL Generator status is 'disabled' at ipa2 as Primary Master (ipa) is acting as it.
 ```bash
 ipa-ca-install
 ipa-crlgen-manage status
 ```
 13. Verify FreeIPA GUI https://ipa2.example.local/ipa/ui
 
-14. Note that as there is no DNS Server serving zone 'example.local', the following messages are normal.
+14. A Replica Master with additional CA Server role is called Secondary Master and it is HA (High Availability) and DR (Disaster Recovery) capable when its CRL Generator status is enabled.
+
+15. Note that as there is no DNS Server serving zone 'example.local', the following messages are normal.
 ```
 ipaserver.dns_data_management: ERROR unable to resolve host name ipa.example.local. to IP address, ipa-ca DNS record will be incomplete
 OR
@@ -196,7 +198,7 @@ The admin Kerberos password:
 ```
 4. If there is failure and re-installation is needed, run at the Client end:
 ---
-Login as root:
+Login as root at IPA Clent:
 ```bash
 ipa-client-install --uninstall
 ```
@@ -219,14 +221,16 @@ bash -vx ./ipa_add_groups_memberships.sh
 
 Please setup two cron jobs at Primary (ipa) and Seconday Master (ipa2), both the Primary and Secondary Master should run the cron at different timing, example 00:00 for Primray Master and 01:00 for Secondary Master as there will be short burst of IPA Service downtime for running 'ipa-backup', typically few minutes.
 
-Login as root:
+Login as root at both IPA Primary Master (ipa) and Secondary Master (ipa2):
 ```
 # One time effort to create /root/logs
-# mkdir ~/logs
-# Create the following crons
+[ ! -d ~/logs ] && mkdir ~/logs
+
+# Create the following crons as shown
 # crontab -l Primary Master
 0 0 * * * cd /var/lib/ipa/backup && /sbin/ipa-backup > ~/logs/ipa_backup_`date "+\%d"`.log 2>&1 || true
 30 0 * * * find /var/lib/ipa/backup -mtime +30 | xargs rm -rf > /dev/null 2>&1 || true
+
 # crontab -l Secondary Master
 0 1 * * * cd /var/lib/ipa/backup && /sbin/ipa-backup > ~/logs/ipa_backup_`date "+\%d"`.log 2>&1 || true
 30 1 * * * find /var/lib/ipa/backup -mtime +30 | xargs rm -rf > /dev/null 2>&1 || true
@@ -293,7 +297,7 @@ IPA Apache Web Server SSL Cert EMAIL Contact, press Enter for default of garyttt
 IPA Apache Web Server SSL Cert FQDN, press Enter for default of ipa.example.local [ipa.example.local]: 
 ```
 4. When the playbook is run successfully, perform post setup one-time instructions, and verify SSL connection.
-Login as root at Primary Master (ipa)
+Login as root at IPA Primary Master (ipa):
 ```bash
 cat /var/lib/ipa/passwds/ipa.example.local-443-RSA && echo 
 # When the renew-le.sh is run for the first-time and it asks for the pass phrase, enter the context of the above file
@@ -359,10 +363,11 @@ puppet-enterprise-uninstaller
 ```
 Ref: https://puppet.com/docs/pe/2019.8/uninstalling.html#uninstaller_options
 
-5. It is highly recommended to apply SSL Cert to PE Console Service Web Server, please refer to:
+5. Else verify PE Console https://puppet.example.local
+
+6. It is highly recommended to apply SSL Cert to PE Console Service Web Server, please refer to:
 https://puppet.com/docs/pe/2019.8/use_a_custom_ssl_cert_for_the_console.html
 
-6. Else verify PE Console https://puppet.example.local
 
 # Centralized Configuration - Install Foreman
 
@@ -371,14 +376,17 @@ https://puppet.com/docs/pe/2019.8/use_a_custom_ssl_cert_for_the_console.html
 git clone https://github.com/garyttt/freeipa_puppet_foreman.git
 cd freeipa_puppet_foreman/ansible
 ```
-Login as root at foreman:
+Sudo to root at Foreman Server (foreman):
 ```bash
+sudo -i
 ./foreman_install_firewall_rules.sh
 ./foreman_install.sh
 ```
-2. If there is failure and re-installation is needed, it is easier to rebuild VM and re-run the install scripts.
+2. If there is failure and re-installation is needed, it is easier to rebuild foreman VM and re-run the install scripts.
 3. Else verify Foreman GUI https://foreman.example.local
-4. Fine tune puppetserver within Foreman for performance, make the modifications as shown and restart puppetserver, these modifications are: increase ReservedCodeCacheSize from 512m to 1G, enable environment-class-cache and multithreading.
+4. Fine tune puppetserver within Foreman for performance, make the modifications as shown and restart puppetserver, these modifications are: 
+* increase ReservedCodeCacheSize from 512m to 1G
+* enable environment-class-cache and multithreading
 ```bash
 [root@foreman ~]# diff /etc/sysconfig/puppetserver.orig /etc/sysconfig/puppetserver
 9c9
@@ -417,8 +425,16 @@ Nov 25 01:57:14 foreman.example.local systemd[1]: Starting puppetserver Service.
 Nov 25 01:57:32 foreman.example.local systemd[1]: Started puppetserver Service.
 [root@foreman ~]#
 ```
----
-It is highly recommended to apply SSL Cert to Foreman Apache Server (httpd).
+5. It is highly recommended to apply SSL Cert to Foreman Apache Server (httpd).
+Assuming you have the SSL Cert/Key and CA details ready, you may append the following lines to the foreman_install.sh, and re-run.
+```
+--reset-foreman-server-ssl-ca \
+--foreman-server-ssl-cert /etc/pki/tls/certs/foreman.example.local.crt \
+--foreman-server-ssl-key /etc/pki/tls/private/foreman.example.local.key \
+--foreman-server-ssl-chain /etc/pki/tls/certs/gd_bundle-g2-g1.crt \
+--puppet-server-foreman-ssl-ca /etc/pki/tls/certs/gd_bundle-g2-g1.crt \
+--foreman-proxy-foreman-ssl-ca /etc/pki/tls/certs/gd_bundle-g2-g1.crt
+```
 
 # Install Puppet Agent at multiple remote hosts
 
@@ -546,7 +562,7 @@ If you were to run this script manually one-time, prior to that please make a co
 
 # Reducing Puppet Agent Runtime in scanning for large number of files
 
-Login as root at puppet.example.local and/or foreman.example.local
+Login as root at Puppet Enterprise (puppet) and Foreman (foreman):
 
 For practical reasons we should define EXCLUDES so as to reduce the runtime of Puppet Agent and save system resources.
 ```
