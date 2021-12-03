@@ -41,11 +41,13 @@ systemctl restart systemd-resolved
 hostname -i
 hostname -f
 ```
+* `hostname -i` should not return multiple entries or else the Ansible playbook run will fail.
+* `hostname -f` should return the FQDN (Fully Qualified Domain Name).
 3. Ensure all VMs are having the same timezone.
 ```bash
 ln -sf /usr/share/zoneinfo/Asia/Singapore /etc/localtime
 ```
-4. Ensure umask is 0022 in ~/.bashrc of root account who will usually own the package files.
+4. Ensure umask is 0022 in ~/.bashrc of root account at ipa and ipa2 who will usually own the package files.
 5. Ensure the run_user@controller (gtay@centos8) SSH public key is authorized by remote_user@remote_host (gtay@ALL_VMs).
 6. Ensure the remote_user (gtay) has sudo right at the remote_host (ALL VMs).
 7. Ensure curl and GIT client are installed at ALL VMs.
@@ -68,7 +70,7 @@ install_freeipa_server.yaml:    DNS_SERVER1: "192.168.159.2"
 install_freeipa_server.yaml:      prompt: The FreeIPA Server IP Address, press Enter for default of 192.168.159.133 (ipa)
 install_freeipa_server.yaml:      default: "192.168.159.133"
 ```
-3. Run Ansible for Primary Master Install, take default values except admin and directory manager password which you need to define.
+3. Run Ansible for Primary Master Install, take default values except admin and directory manager password for which you need to define.
 ```bash
 ansible-playbook -vv -i inventory/hosts -l ipa install_freeipa_server.yaml -K
 ```
@@ -80,6 +82,19 @@ The FreeIPA Kerberos REALM in CAPITAL, press Enter for default of DEV.EXAMPLE.LO
 The FreeIPA DNS Domain/Sub-Domain in lowercase, press Enter for default of dev.example.local [dev.example.local]:
 The admin principal Kerberos password:
 The Directory Manager password:
+```
+Options of ipa-server-install used in playbook: you may run 'ipa-server-install --help' to check.
+```
+-U, --unattaneded       unattended (un)installation never prompts the user
+--setup-dns             configure bind with our zone
+--no-dnssec-validation  Disable DNSSEC validation
+--no-host-dns           Do not use DNS for hostname lookup during installation
+--forwarder=FORWARDERS  Add a DNS forwarder. This option can be used multiple times
+--forward-policy={only,first} DNS forwarding policy for global forwarders
+--reserve-zone=REVERSE_ZONES The reverse DNS zone to use. This option can be used multiple times
+-N, --no-ntp            do not configure ntp
+--no-url-redirect       Do not automatically redirect the web UI
+--mkhomedir             create home directories for users on their first login
 ```
 4. When the current task is 'Install/Configure FreeIPA Server', launch another terminal session, login as remote_user (gtay) at remote host (ipa), and tail the IPA Server Install log.
 ```bash
@@ -128,6 +143,19 @@ The Fully Qualified Domain Name of the IPA Primary Master (CA-CRL)), press Enter
 The Fully Qualified Domain Name of the IPA Replica Master (ipa2.example.local), press Enter for default of ipa2.example.local" [ipa2.example.local]:
 The admin Kerberos principal, press Enter for default of admin@"DEV.EXAMPLE.LOCAL" [admin@DEV.EXAMPLE.LOCAL]:
 The admin Kerberos password:
+```
+Options of ipa-replica-install used in playbook: you may run 'ipa-replica-install --help' to check.
+```
+-U, --unattaneded       unattended (un)installation never prompts the user
+--setup-dns             configure bind with our zone
+--no-dnssec-validation  Disable DNSSEC validation
+--no-host-dns           Do not use DNS for hostname lookup during installation
+--forwarder=FORWARDERS  Add a DNS forwarder. This option can be used multiple times
+--forward-policy={only,first} DNS forwarding policy for global forwarders
+--reserve-zone=REVERSE_ZONES The reverse DNS zone to use. This option can be used multiple times
+-N, --no-ntp            do not configure ntp
+--no-url-redirect       Do not automatically redirect the web UI
+--mkhomedir             create home directories for users on their first login
 ```
 9. When the current task is 'Install/Configure FreeIPA Replica', launch another terminal session, login as remote_user (gtay) at remote host (ipa2), and tail the IPA Replica Install log.
 ```bash
